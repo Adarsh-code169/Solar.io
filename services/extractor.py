@@ -97,25 +97,20 @@ def extract_bill_data(file_path: str) -> dict:
         logger.info(f"File uploaded to Gemini: {uploaded_file.name}")
 
         # Initialize model and generate response
-        model = genai.GenerativeModel("gemini-flash-latest")
+        model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(
             [EXTRACTION_PROMPT, uploaded_file],
             generation_config=genai.types.GenerationConfig(
-                temperature=0.1,  # Low temperature for factual extraction
+                temperature=0.1,
                 max_output_tokens=2048,
+                response_mime_type="application/json",
             ),
         )
 
         raw_text = response.text.strip()
         logger.info(f"Gemini raw response length: {len(raw_text)} chars")
 
-        # Clean response — remove markdown code blocks if present
-        if raw_text.startswith("```"):
-            # Remove ```json ... ``` wrapper
-            lines = raw_text.split("\n")
-            raw_text = "\n".join(lines[1:-1])
-
-        # Parse JSON
+        # Parse JSON directly (JSON mode ensures no markdown or extra text)
         extracted_data = json.loads(raw_text)
         logger.info(f"Successfully extracted {len(extracted_data)} fields")
 
