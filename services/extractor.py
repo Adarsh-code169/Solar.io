@@ -97,7 +97,7 @@ def extract_bill_data(file_path: str) -> dict:
         logger.info(f"File uploaded to Gemini: {uploaded_file.name}")
 
         # Initialize model and generate response
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-flash-latest")
         response = model.generate_content(
             [EXTRACTION_PROMPT, uploaded_file],
             generation_config=genai.types.GenerationConfig(
