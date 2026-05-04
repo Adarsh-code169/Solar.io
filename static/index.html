@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Solar Load Calculator — AI-powered electricity bill extraction and solar recommendations.">
-    <title>Solar Load Calculator | Energybae</title>
+    <meta name="description" content="SolarCloud — AI-powered electricity bill extraction and solar proposal generation.">
+    <title>SolarCloud | Energybae</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,109 +12,172 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="bg-particles" id="particles"></div>
 
-    <header class="header">
-        <div class="header-content">
-            <div class="logo">
-                <div class="logo-icon">☁️</div>
-                <div>
-                    <h1 class="logo-text">SolarCloud</h1>
-                    <p class="logo-sub">SMART LOAD AUTOMATION</p>
-                </div>
-            </div>
-            <div class="header-badge">
-                <span class="badge-dot"></span>
-                PROFESSIONAL EDITION
-            </div>
+<!-- ═══════════════════════════════════════════════════════════
+     TOP BAR  (fixed height, always visible)
+════════════════════════════════════════════════════════════ -->
+<header class="topbar">
+    <div class="logo">
+        <span class="logo-icon">☁️</span>
+        <div>
+            <span class="logo-text">SolarCloud</span>
+            <span class="logo-sub">SMART LOAD AUTOMATION</span>
         </div>
-    </header>
-
-    <div class="steps-container">
-        <div class="step active" id="step-1-indicator"><div class="step-number">1</div><span>Upload Bill</span></div>
-        <div class="step-line" id="line-1"></div>
-        <div class="step" id="step-2-indicator"><div class="step-number">2</div><span>Review Data</span></div>
-        <div class="step-line" id="line-2"></div>
-        <div class="step" id="step-3-indicator"><div class="step-number">3</div><span>Download Report</span></div>
     </div>
 
-    <main class="main-content">
-        <section class="card step-section" id="step-1">
-            <div class="card-header">
-                <h2>📄 Upload Electricity Bill</h2>
-                <p>Upload your MSEDCL or any Indian electricity bill (PDF or image)</p>
-            </div>
-            <div class="upload-zone" id="upload-zone">
-                <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp,.tiff" hidden>
-                <div class="upload-icon">⬆️</div>
-                <p class="upload-text">Drag & drop your bill here</p>
-                <p class="upload-sub">or click to browse • PDF, PNG, JPG (max 10MB)</p>
-            </div>
-            <div class="file-preview hidden" id="file-preview">
-                <div class="file-info">
-                    <div class="file-icon">📎</div>
-                    <div><p class="file-name" id="file-name"></p><p class="file-size" id="file-size"></p></div>
-                </div>
-                <button class="btn-remove" id="btn-remove" title="Remove file">✕</button>
-            </div>
-            <button class="btn-primary" id="btn-extract" disabled>
-                <span class="btn-text">Extract Bill Data</span>
-                <span class="btn-loader hidden" id="extract-loader"><span class="spinner"></span>Analyzing with AI...</span>
-            </button>
-        </section>
+    <nav class="step-nav" aria-label="Wizard progress">
+        <div class="step-item active" id="nav-1">
+            <span class="step-num">1</span>
+            <span class="step-label">Upload</span>
+        </div>
+        <div class="step-connector" id="conn-1"></div>
+        <div class="step-item" id="nav-2">
+            <span class="step-num">2</span>
+            <span class="step-label">Review</span>
+        </div>
+        <div class="step-connector" id="conn-2"></div>
+        <div class="step-item" id="nav-3">
+            <span class="step-num">3</span>
+            <span class="step-label">Download</span>
+        </div>
+    </nav>
 
-        <section class="card step-section hidden" id="step-2">
-            <div class="card-header">
-                <h2>🔍 Extracted Bill Data</h2>
-                <p>Review and edit the extracted data before generating the report</p>
-            </div>
-            <div class="data-grid" id="data-grid"></div>
+    <div class="topbar-badge">
+        <span class="badge-dot"></span>
+        PROFESSIONAL EDITION
+    </div>
+</header>
 
-            <div class="chart-container" id="chart-container">
-                <div class="chart-header">
-                    <h3 class="chart-title">📊 ROI Comparison: Solar vs. No Solar</h3>
-                    <p class="chart-sub">Cumulative electricity cost over time (3% annual rate escalation · 90% bill reduction with solar)</p>
-                </div>
-                <div class="chart-canvas-wrapper">
-                    <canvas id="roiChart"></canvas>
-                </div>
-            </div>
+<!-- ═══════════════════════════════════════════════════════════
+     WIZARD  (fills remaining viewport height)
+════════════════════════════════════════════════════════════ -->
+<main class="wizard" id="wizard">
 
-            <div class="btn-group">
-                <button class="btn-secondary" id="btn-back-1">← Back</button>
-                <button class="btn-primary" id="btn-generate">
-                    <span class="btn-text">Generate Solar Report</span>
-                    <span class="btn-loader hidden" id="generate-loader"><span class="spinner"></span>Generating Proposal & Excel...</span>
+    <!-- ── STEP 1 : Upload ─────────────────────────────────── -->
+    <section id="step-upload" class="step-section active" aria-label="Upload your electricity bill">
+        <div class="upload-wrapper">
+            <div class="upload-card">
+                <div class="upload-card-header">
+                    <h2>📄 Upload Electricity Bill</h2>
+                    <p>MSEDCL, Adani, Tata Power — any Indian utility bill (PDF or image)</p>
+                </div>
+
+                <div class="upload-zone" id="upload-zone"
+                     role="button" tabindex="0"
+                     aria-label="Drop zone — click or drag a file here">
+                    <input type="file" id="file-input"
+                           accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp,.tiff" hidden
+                           aria-label="Choose bill file">
+                    <div class="upload-icon">⬆️</div>
+                    <p class="upload-text">Drag &amp; drop your bill here</p>
+                    <p class="upload-sub">or click to browse &nbsp;•&nbsp; PDF, PNG, JPG (max 10 MB)</p>
+                </div>
+
+                <div class="file-preview hidden" id="file-preview">
+                    <div class="file-info">
+                        <span class="file-icon-sm">📎</span>
+                        <div>
+                            <p class="file-name" id="file-name"></p>
+                            <p class="file-size" id="file-size"></p>
+                        </div>
+                    </div>
+                    <button class="btn-remove" id="btn-remove" aria-label="Remove selected file">✕</button>
+                </div>
+
+                <button class="btn-primary" id="btn-extract" disabled>
+                    <span class="btn-text">Extract Bill Data</span>
+                    <span class="btn-loader hidden" id="extract-loader">
+                        <span class="spinner"></span>Analysing with AI…
+                    </span>
                 </button>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <section class="card step-section hidden" id="step-3">
-            <div class="card-header">
-                <h2>✅ Proposal Ready!</h2>
-                <p>Your branded solar proposal package has been generated</p>
+    <!-- ── STEP 2 : Review (two-column) ───────────────────── -->
+    <section id="step-review" class="step-section" aria-label="Review extracted bill data">
+
+        <!-- Left 45 % : editable data fields -->
+        <div class="data-panel" id="data-panel">
+            <div class="panel-header">
+                <button class="btn-icon" id="btn-back-upload" aria-label="Back to upload">← Back</button>
+                <h2>🔍 Review Extracted Data</h2>
+                <p>Edit any field before generating the report</p>
             </div>
-            <div class="success-container">
-                <div class="success-icon">🎉</div>
-                <p class="success-text">Your solar proposal package is ready!</p>
-                <p class="success-sub">Includes the Excel sizing report <strong>+</strong> branded PDF proposal</p>
-                <p class="success-filename" id="output-filename"></p>
-                <a class="btn-download" id="btn-download" href="#" download>⬇️ Download Solar Proposal (.zip)</a>
-                <button class="btn-secondary" id="btn-new" style="margin-top:16px">Process Another Bill</button>
+
+            <div class="data-grid" id="data-grid"
+                 role="form" aria-label="Extracted bill data fields"></div>
+
+            <div class="panel-footer">
+                <button class="btn-primary" id="btn-generate">
+                    <span class="btn-text">⚡ Generate Solar Report</span>
+                    <span class="btn-loader hidden" id="generate-loader">
+                        <span class="spinner"></span>Generating Proposal &amp; Excel…
+                    </span>
+                </button>
             </div>
-        </section>
-    </main>
+        </div>
 
-    <footer class="footer">
-        <p>Built for <strong>Energybae</strong> • Solar Load Calculator v1.0 • Powered by Gemini AI</p>
-    </footer>
+        <!-- Right 55 % : ROI chart -->
+        <div class="chart-panel" id="chart-panel">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h3>📊 ROI Comparison: Solar vs. No Solar</h3>
+                    <p>Cumulative cost over time &nbsp;·&nbsp; 3 % annual rate escalation &nbsp;·&nbsp; 90 % bill reduction with solar</p>
+                </div>
+                <div class="chart-canvas-wrapper">
+                    <canvas id="roiChart" aria-label="Bar chart comparing electricity cost with and without solar"></canvas>
+                </div>
+                <p class="chart-legend-note">Live — updates as you edit the fields on the left</p>
+            </div>
+        </div>
 
-    <div class="toast hidden" id="toast">
-        <div class="toast-icon">⚠️</div>
-        <p class="toast-message" id="toast-message"></p>
-        <button class="toast-close" id="toast-close">✕</button>
-    </div>
+    </section>
 
-    <script src="/static/script.js"></script>
+    <!-- ── STEP 3 : Download (two-column) ─────────────────── -->
+    <section id="step-generate" class="step-section" aria-label="Download your solar proposal">
+
+        <!-- Left 45 % : read-only summary -->
+        <div class="data-panel data-panel--readonly" id="summary-panel">
+            <div class="panel-header">
+                <h2>📋 Proposal Summary</h2>
+                <p>Data used to generate your report</p>
+            </div>
+            <div class="data-grid" id="summary-grid"
+                 aria-label="Read-only summary of bill data"></div>
+        </div>
+
+        <!-- Right 55 % : success + download -->
+        <div class="result-panel" id="result-panel">
+            <div class="result-card">
+                <div class="result-icon">🎉</div>
+                <h2 class="result-title">Your Solar Proposal is Ready!</h2>
+                <p class="result-sub">
+                    The package includes your <strong>Excel sizing report</strong>
+                    and a branded <strong>PDF proposal</strong>.
+                </p>
+                <a class="btn-download" id="btn-download" href="#"
+                   download="Energybae_Solar_Proposal.zip">
+                    ⬇️ Download Proposal (.zip)
+                </a>
+                <button class="btn-secondary" id="btn-new-bill">Process Another Bill</button>
+            </div>
+        </div>
+
+    </section>
+
+</main>
+
+<!-- Accessibility live region -->
+<div id="statusMessage" aria-live="polite" class="sr-only"></div>
+
+<!-- Toast notification -->
+<div class="toast hidden" id="toast" role="alert" aria-atomic="true">
+    <span class="toast-icon">⚠️</span>
+    <p class="toast-message" id="toast-message"></p>
+    <button class="toast-close" id="toast-close" aria-label="Close notification">✕</button>
+</div>
+
+<script src="/static/script.js"></script>
 </body>
 </html>
