@@ -1,20 +1,12 @@
-/**
- * SolarCloud — Frontend Logic
- *
- * State machine: step-upload → step-review → step-generate
- * Handles: file upload, drag-drop, AI extraction, live ROI chart,
- *          ZIP proposal download, accessibility announcements.
- */
-
 "use strict";
 
-// ── State ──────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────
 let selectedFile  = null;
 let extractedData = {};
 let downloadUrl   = "";
-let roiChart      = null;      // Chart.js instance (destroyed on reset)
+let roiChart      = null;
 
-// ── DOM refs ───────────────────────────────────────────────────────────
+// ── DOM refs ───────────────────────────────────────────────────
 const uploadZone     = document.getElementById("upload-zone");
 const fileInput      = document.getElementById("file-input");
 const filePreview    = document.getElementById("file-preview");
@@ -40,7 +32,7 @@ const toastMsg       = document.getElementById("toast-message");
 const toastClose     = document.getElementById("toast-close");
 const statusMsg      = document.getElementById("statusMessage");
 
-// ── Field config ───────────────────────────────────────────────────────
+// ── Field config ───────────────────────────────────────────────
 const FIELD_LABELS = {
     consumer_name:     "Consumer Name",
     consumer_number:   "Consumer Number",
@@ -77,49 +69,46 @@ const SECTIONS = [
     document.getElementById("step-review"),
     document.getElementById("step-generate"),
 ];
-const NAV_ITEMS = [
+
+const SIDEBAR_NAV = [
     document.getElementById("nav-1"),
     document.getElementById("nav-2"),
     document.getElementById("nav-3"),
 ];
-const CONNECTORS = [
-    document.getElementById("conn-1"),
-    document.getElementById("conn-2"),
+
+const PAGE_TITLES = [
+    ["Upload Bill",      "AI-powered extraction for MSEDCL, Adani & Tata Power"],
+    ["Bill Analysis",    "Review extracted data and ROI projection"],
+    ["Download Report",  "Your solar proposal is ready to download"],
 ];
-const STEP_LABELS = ["Upload your bill", "Review extracted data", "Download your proposal"];
 
 function showStep(n) {
-    // Toggle sections (1-indexed)
     SECTIONS.forEach((el, i) => el.classList.toggle("active", i + 1 === n));
 
-    // Update nav indicators
-    NAV_ITEMS.forEach((el, i) => {
+    SIDEBAR_NAV.forEach((el, i) => {
         el.classList.remove("active", "completed");
-        if (i + 1 === n)    el.classList.add("active");
-        else if (i + 1 < n) el.classList.add("completed");
+        el.removeAttribute("aria-current");
+        if (i + 1 === n)    { el.classList.add("active");    el.setAttribute("aria-current", "page"); }
+        else if (i + 1 < n)   el.classList.add("completed");
     });
 
-    // Update connectors
-    CONNECTORS.forEach((el, i) => {
-        el.classList.remove("active", "completed");
-        if (i + 1 < n - 1) el.classList.add("completed");
-        if (i + 1 === n - 1) el.classList.add("active");
-    });
+    const [title, subtitle] = PAGE_TITLES[n - 1] || ["", ""];
+    document.getElementById("page-title").textContent    = title;
+    document.getElementById("page-subtitle").textContent = subtitle;
 
-    announce(STEP_LABELS[n - 1] || "");
+    announce(title);
 
-    // Scroll the wizard back to top (mobile)
     const wizard = document.getElementById("wizard");
     if (wizard) wizard.scrollTop = 0;
 }
 
 
 // ════════════════════════════════════════════════════════════════
-// ACCESSIBILITY  — live region + toast
+// ACCESSIBILITY
 // ════════════════════════════════════════════════════════════════
 
 function announce(msg) {
-    statusMsg.textContent = "";                      // reset first so repeat text re-fires
+    statusMsg.textContent = "";
     requestAnimationFrame(() => { statusMsg.textContent = msg; });
     setTimeout(() => { statusMsg.textContent = ""; }, 3000);
 }
@@ -127,9 +116,7 @@ function announce(msg) {
 function showToast(message, duration = 6000) {
     toastMsg.textContent = message;
     toast.classList.remove("hidden");
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => toast.classList.add("show"));
-    });
+    requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add("show")));
     if (duration > 0) setTimeout(hideToast, duration);
 }
 
@@ -146,8 +133,8 @@ toastClose.addEventListener("click", hideToast);
 // ════════════════════════════════════════════════════════════════
 
 function formatBytes(bytes) {
-    if (bytes < 1024)           return `${bytes} B`;
-    if (bytes < 1024 * 1024)    return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024)        return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -164,8 +151,8 @@ function setFile(file) {
         return;
     }
     selectedFile = file;
-    fileNameEl.textContent  = file.name;
-    fileSizeEl.textContent  = formatBytes(file.size);
+    fileNameEl.textContent         = file.name;
+    fileSizeEl.textContent         = formatBytes(file.size);
     filePreview.classList.remove("hidden");
     uploadZone.style.opacity       = "0.5";
     uploadZone.style.pointerEvents = "none";
@@ -181,15 +168,13 @@ function clearFile() {
     btnExtract.disabled = true;
 }
 
-// Click / keyboard on upload zone
-uploadZone.addEventListener("click", () => fileInput.click());
+uploadZone.addEventListener("click",   () => fileInput.click());
 uploadZone.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
 });
 fileInput.addEventListener("change", () => setFile(fileInput.files[0]));
 btnRemove.addEventListener("click",  clearFile);
 
-// Drag-and-drop
 uploadZone.addEventListener("dragover",  (e) => { e.preventDefault(); uploadZone.classList.add("dragover"); });
 uploadZone.addEventListener("dragleave", ()  => uploadZone.classList.remove("dragover"));
 uploadZone.addEventListener("drop", (e) => {
@@ -197,6 +182,90 @@ uploadZone.addEventListener("drop", (e) => {
     uploadZone.classList.remove("dragover");
     setFile(e.dataTransfer.files[0]);
 });
+
+
+// ════════════════════════════════════════════════════════════════
+// SIZING MATH  (mirrors pdf_generator.py)
+// ════════════════════════════════════════════════════════════════
+
+function computeSizing(data) {
+    const units   = parseFloat(data.units_consumed)    || 0;
+    const rate    = parseFloat(data.electricity_rate)  || 0;
+    const bill    = parseFloat(data.total_bill_amount) || 0;
+    const monthly = bill > 0 ? bill : (units * rate || 0);
+
+    const kw      = Math.ceil(units / 120) || 0;
+    const panels  = Math.ceil((kw * 1000) / 400) || 0;
+    const area    = kw * 100;
+    const cost    = kw * 55000;
+    const annSav  = monthly * 12 * 0.90;
+    const payback = annSav > 0 ? cost / annSav : 0;
+
+    let savings25 = 0;
+    for (let k = 0; k < 25; k++) savings25 += annSav * Math.pow(1.03, k);
+    savings25 -= cost;
+
+    return { kw, panels, area, cost, annSav, payback, savings25 };
+}
+
+function fmtINR(v) {
+    if (!v || isNaN(v)) return "—";
+    if (v >= 1_00_00_000) return `₹${(v / 1_00_00_000).toFixed(1)}Cr`;
+    if (v >= 1_00_000)    return `₹${(v / 1_00_000).toFixed(1)}L`;
+    if (v >= 1_000)       return `₹${Math.round(v / 1000)}K`;
+    return `₹${Math.round(v)}`;
+}
+
+
+// ════════════════════════════════════════════════════════════════
+// KPI CARDS + SIZING LIST  (step 2)
+// ════════════════════════════════════════════════════════════════
+
+function updateKPICards(data) {
+    const units = parseFloat(data.units_consumed)    || 0;
+    const rate  = parseFloat(data.electricity_rate)  || 0;
+    const bill  = parseFloat(data.total_bill_amount) || 0;
+    const load  = parseFloat(data.sanctioned_load)   || 0;
+
+    const sz = computeSizing(data);
+
+    setText("kpi-units",  units  ? units.toFixed(0)  : "—");
+    setText("kpi-rate",   rate   ? rate.toFixed(2)   : "—");
+    setText("kpi-load",   load   ? load.toFixed(1)   : "—");
+    setText("kpi-amount", bill   ? `₹${Math.round(bill).toLocaleString("en-IN")}` : "—");
+    setText("kpi-period", data.billing_period || "—");
+    setText("kpi-kw",     sz.kw  ? `${sz.kw}` : "—");
+}
+
+function updateSizingList(data) {
+    const sz = computeSizing(data);
+    setText("sz-val-kw",      sz.kw      ? `${sz.kw} kW`      : "—");
+    setText("sz-val-panels",  sz.panels  ? `${sz.panels}`     : "—");
+    setText("sz-val-area",    sz.area    ? `${sz.area} sq.ft` : "—");
+    setText("sz-val-cost",    fmtINR(sz.cost));
+    setText("sz-val-savings", fmtINR(sz.annSav));
+    setText("sz-val-payback", sz.payback ? `${sz.payback.toFixed(1)} yrs` : "—");
+}
+
+function updateSummaryKPIs(data) {
+    const sz = computeSizing(data);
+    setText("sum-kw",       sz.kw      ? `${sz.kw}`          : "—");
+    setText("sum-panels",   sz.panels  ? `${sz.panels}`      : "—");
+    setText("sum-area",     sz.area    ? `${sz.area}`        : "—");
+    setText("sum-cost",     fmtINR(sz.cost));
+    setText("sum-savings1", fmtINR(sz.annSav));
+    setText("sum-payback",  sz.payback ? `${sz.payback.toFixed(1)}` : "—");
+
+    setText("sum-sz-kw",      sz.kw      ? `${sz.kw} kW`      : "—");
+    setText("sum-sz-panels",  sz.panels  ? `${sz.panels} panels` : "—");
+    setText("sum-sz-area",    sz.area    ? `${sz.area} sq.ft` : "—");
+    setText("sum-savings25",  fmtINR(sz.savings25 > 0 ? sz.savings25 : 0));
+}
+
+function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
 
 
 // ════════════════════════════════════════════════════════════════
@@ -220,6 +289,8 @@ btnExtract.addEventListener("click", async () => {
 
         extractedData = json.data;
         buildDataGrid(dataGrid, extractedData, false);
+        updateKPICards(extractedData);
+        updateSizingList(extractedData);
         renderChart(extractedData);
         showStep(2);
 
@@ -233,12 +304,11 @@ btnExtract.addEventListener("click", async () => {
     }
 });
 
-// Back to upload
 btnBackUpload.addEventListener("click", () => showStep(1));
 
 
 // ════════════════════════════════════════════════════════════════
-// DATA GRID BUILDER  (shared by review + summary)
+// DATA GRID BUILDER
 // ════════════════════════════════════════════════════════════════
 
 function buildDataGrid(container, data, readonly) {
@@ -255,7 +325,6 @@ function buildDataGrid(container, data, readonly) {
         appendRow(container, key, String(value ?? ""), readonly);
     });
 
-    // Empty priority fields: only add editable placeholders in review mode
     if (!readonly) {
         PRIORITY_FIELDS.forEach((key) => {
             if (data[key] !== null && data[key] !== undefined) return;
@@ -277,8 +346,8 @@ function appendRow(container, key, value, readonly, placeholder = "") {
                type="text"
                value="${escapeHtml(value)}"
                data-field="${escapeHtml(key)}"
-               ${readonly        ? "readonly"                          : ""}
-               ${placeholder     ? `placeholder="${escapeHtml(placeholder)}"` : ""}
+               ${readonly    ? "readonly"                                   : ""}
+               ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ""}
                aria-label="${escapeHtml(label)}">
     `;
     container.appendChild(row);
@@ -286,13 +355,12 @@ function appendRow(container, key, value, readonly, placeholder = "") {
 
 function escapeHtml(str) {
     return String(str)
-        .replace(/&/g,  "&amp;")
-        .replace(/"/g,  "&quot;")
-        .replace(/</g,  "&lt;")
-        .replace(/>/g,  "&gt;");
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
-// Collect current form values (for live chart + generate payload)
 function collectGridValues() {
     const result = {};
     dataGrid.querySelectorAll(".data-input").forEach((input) => {
@@ -308,8 +376,13 @@ function collectGridValues() {
     return result;
 }
 
-// Live chart update when user edits any field
-dataGrid.addEventListener("input", () => renderChart(collectGridValues()));
+// Live updates as user edits fields
+dataGrid.addEventListener("input", () => {
+    const vals = collectGridValues();
+    renderChart(vals);
+    updateKPICards(vals);
+    updateSizingList(vals);
+});
 
 
 // ════════════════════════════════════════════════════════════════
@@ -323,9 +396,9 @@ function cumulativeCost(monthlyBill, years) {
 }
 
 function renderChart(data) {
-    const bill   = parseFloat(data.total_bill_amount) || 0;
-    const units  = parseFloat(data.units_consumed)    || 0;
-    const rate   = parseFloat(data.electricity_rate)  || 0;
+    const bill    = parseFloat(data.total_bill_amount) || 0;
+    const units   = parseFloat(data.units_consumed)    || 0;
+    const rate    = parseFloat(data.electricity_rate)  || 0;
     const monthly = bill > 0 ? bill : (units > 0 && rate > 0 ? units * rate : 0);
 
     const horizons     = [5, 10, 20];
@@ -351,19 +424,19 @@ function renderChart(data) {
                 {
                     label: "Without Solar",
                     data: withoutSolar,
-                    backgroundColor: "rgba(37, 99, 235, 0.75)",
-                    borderColor:     "rgba(37, 99, 235, 1)",
+                    backgroundColor: "rgba(234, 179, 8, 0.80)",
+                    borderColor:     "rgba(234, 179, 8, 1)",
                     borderWidth: 1.5,
-                    borderRadius: 7,
+                    borderRadius: 6,
                     borderSkipped: false,
                 },
                 {
                     label: "With Solar",
                     data: withSolar,
-                    backgroundColor: "rgba(16, 185, 129, 0.75)",
-                    borderColor:     "rgba(16, 185, 129, 1)",
+                    backgroundColor: "rgba(34, 197, 94, 0.80)",
+                    borderColor:     "rgba(34, 197, 94, 1)",
                     borderWidth: 1.5,
-                    borderRadius: 7,
+                    borderRadius: 6,
                     borderSkipped: false,
                 },
             ],
@@ -375,19 +448,19 @@ function renderChart(data) {
             plugins: {
                 legend: {
                     labels: {
-                        font: { family: "'Inter', sans-serif", size: 12, weight: "600" },
-                        color: "#475569",
+                        font: { family: "'Inter', sans-serif", size: 11, weight: "600" },
+                        color: "#6b7280",
                         usePointStyle: true,
-                        pointStyleWidth: 10,
-                        padding: 20,
+                        pointStyleWidth: 9,
+                        padding: 16,
                     },
                 },
                 tooltip: {
-                    backgroundColor: "#0f172a",
-                    titleFont: { family: "'Inter', sans-serif", size: 13, weight: "700" },
-                    bodyFont:  { family: "'Inter', sans-serif", size: 12 },
-                    padding: 14,
-                    cornerRadius: 10,
+                    backgroundColor: "#111827",
+                    titleFont: { family: "'Inter', sans-serif", size: 12, weight: "700" },
+                    bodyFont:  { family: "'Inter', sans-serif", size: 11 },
+                    padding: 12,
+                    cornerRadius: 9,
                     callbacks: {
                         label(ctx) {
                             return `  ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString("en-IN", {
@@ -399,7 +472,7 @@ function renderChart(data) {
                             const saved = items[0].parsed.y - items[1].parsed.y;
                             return [
                                 "",
-                                `  💰 Savings: ${saved.toLocaleString("en-IN", {
+                                `  Savings: ${saved.toLocaleString("en-IN", {
                                     style: "currency", currency: "INR", maximumFractionDigits: 0,
                                 })}`,
                             ];
@@ -411,19 +484,19 @@ function renderChart(data) {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        font: { family: "'Inter', sans-serif", size: 12, weight: "600" },
-                        color: "#475569",
+                        font: { family: "'Inter', sans-serif", size: 11, weight: "600" },
+                        color: "#6b7280",
                     },
                 },
                 y: {
-                    grid: { color: "rgba(226, 232, 240, 0.8)" },
+                    grid: { color: "rgba(229,231,235,.8)" },
                     ticks: {
-                        font:  { family: "'Inter', sans-serif", size: 11 },
-                        color: "#94a3b8",
+                        font:  { family: "'Inter', sans-serif", size: 10 },
+                        color: "#9ca3af",
                         callback(v) {
                             if (v >= 1_00_00_000) return `₹${(v / 1_00_00_000).toFixed(1)}Cr`;
-                            if (v >= 1_00_000)   return `₹${(v / 1_00_000).toFixed(0)}L`;
-                            if (v >= 1_000)      return `₹${(v / 1_000).toFixed(0)}K`;
+                            if (v >= 1_00_000)    return `₹${(v / 1_00_000).toFixed(0)}L`;
+                            if (v >= 1_000)       return `₹${(v / 1_000).toFixed(0)}K`;
                             return `₹${v}`;
                         },
                     },
@@ -452,13 +525,11 @@ btnGenerate.addEventListener("click", async () => {
             body: JSON.stringify(payload),
         });
 
-        // Errors return JSON with a non-2xx status
         if (!res.ok) {
             const json = await res.json();
             throw new Error(json.error || "Report generation failed.");
         }
 
-        // Success: backend returns the ZIP blob directly
         const blob = await res.blob();
         if (downloadUrl) URL.revokeObjectURL(downloadUrl);
         downloadUrl = URL.createObjectURL(blob);
@@ -466,8 +537,8 @@ btnGenerate.addEventListener("click", async () => {
         btnDownload.href     = downloadUrl;
         btnDownload.download = "Energybae_Solar_Proposal.zip";
 
-        // Populate read-only summary panel (left side of step 3)
         buildDataGrid(summaryGrid, payload, true);
+        updateSummaryKPIs(payload);
 
         showStep(3);
         announce("Proposal ready. Click Download to save your ZIP.");
@@ -484,19 +555,16 @@ btnGenerate.addEventListener("click", async () => {
 
 
 // ════════════════════════════════════════════════════════════════
-// RESET — process another bill
+// RESET
 // ════════════════════════════════════════════════════════════════
 
 btnNewBill.addEventListener("click", () => {
-    // Release object URL to avoid memory leak
     if (downloadUrl) { URL.revokeObjectURL(downloadUrl); downloadUrl = ""; }
-
-    // Destroy chart so it can be rebuilt fresh on next extraction
-    if (roiChart) { roiChart.destroy(); roiChart = null; }
+    if (roiChart)    { roiChart.destroy(); roiChart = null; }
 
     clearFile();
-    extractedData = {};
-    dataGrid.innerHTML    = "";
+    extractedData        = {};
+    dataGrid.innerHTML   = "";
     summaryGrid.innerHTML = "";
 
     showStep(1);

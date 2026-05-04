@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="SolarCloud — AI-powered electricity bill extraction and solar proposal generation.">
     <title>SolarCloud | Energybae</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,165 +12,444 @@
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════
-     TOP BAR  (fixed height, always visible)
-════════════════════════════════════════════════════════════ -->
-<header class="topbar">
-    <div class="logo">
-        <span class="logo-icon">☁️</span>
-        <div>
-            <span class="logo-text">SolarCloud</span>
-            <span class="logo-sub">SMART LOAD AUTOMATION</span>
-        </div>
-    </div>
+<div class="app-shell">
 
-    <nav class="step-nav" aria-label="Wizard progress">
-        <div class="step-item active" id="nav-1">
-            <span class="step-num">1</span>
-            <span class="step-label">Upload</span>
+    <!-- ── SIDEBAR ─────────────────────────────────────────────── -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="4.5" fill="#eab308"/>
+                    <line x1="12" y1="2" x2="12" y2="4.5" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="12" y1="19.5" x2="12" y2="22" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="2" y1="12" x2="4.5" y2="12" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="19.5" y1="12" x2="22" y2="12" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="4.93" y1="4.93" x2="6.64" y2="6.64" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="17.36" y1="17.36" x2="19.07" y2="19.07" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="4.93" y1="19.07" x2="6.64" y2="17.36" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="17.36" y1="6.64" x2="19.07" y2="4.93" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div>
+                <span class="sidebar-logo-text">SolarCloud</span>
+                <span class="sidebar-logo-sub">by Energybae</span>
+            </div>
         </div>
-        <div class="step-connector" id="conn-1"></div>
-        <div class="step-item" id="nav-2">
-            <span class="step-num">2</span>
-            <span class="step-label">Review</span>
-        </div>
-        <div class="step-connector" id="conn-2"></div>
-        <div class="step-item" id="nav-3">
-            <span class="step-num">3</span>
-            <span class="step-label">Download</span>
-        </div>
-    </nav>
 
-    <div class="topbar-badge">
-        <span class="badge-dot"></span>
-        PROFESSIONAL EDITION
-    </div>
-</header>
+        <nav class="sidebar-nav" aria-label="Main navigation">
+            <p class="sidebar-nav-label">MAIN MENU</p>
+            <a class="sidebar-nav-item active" id="nav-1" href="#" aria-current="page">
+                <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                </svg>
+                <span>Overview</span>
+                <span class="nav-badge" id="nav-badge-1">1</span>
+            </a>
+            <a class="sidebar-nav-item" id="nav-2" href="#" aria-current="false">
+                <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                </svg>
+                <span>Analysis</span>
+                <span class="nav-badge" id="nav-badge-2">2</span>
+            </a>
+            <a class="sidebar-nav-item" id="nav-3" href="#" aria-current="false">
+                <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd"/>
+                </svg>
+                <span>Report</span>
+                <span class="nav-badge" id="nav-badge-3">3</span>
+            </a>
+        </nav>
 
-<!-- ═══════════════════════════════════════════════════════════
-     WIZARD  (fills remaining viewport height)
-════════════════════════════════════════════════════════════ -->
-<main class="wizard" id="wizard">
+        <div class="sidebar-divider"></div>
 
-    <!-- ── STEP 1 : Upload ─────────────────────────────────── -->
-    <section id="step-upload" class="step-section active" aria-label="Upload your electricity bill">
-        <div class="upload-wrapper">
-            <div class="upload-card">
-                <div class="upload-card-header">
-                    <h2>📄 Upload Electricity Bill</h2>
-                    <p>MSEDCL, Adani, Tata Power — any Indian utility bill (PDF or image)</p>
+        <nav class="sidebar-nav" aria-label="Settings">
+            <p class="sidebar-nav-label">SETTINGS</p>
+            <a class="sidebar-nav-item sidebar-nav-item--muted" href="#" tabindex="-1">
+                <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                </svg>
+                <span>Settings</span>
+            </a>
+            <a class="sidebar-nav-item sidebar-nav-item--muted" href="#" tabindex="-1">
+                <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <span>Help</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar">EB</div>
+                <div class="sidebar-user-info">
+                    <span class="sidebar-user-name">Energybae</span>
+                    <span class="sidebar-user-role">Solar Consultant</span>
                 </div>
+            </div>
+        </div>
+    </aside>
 
-                <div class="upload-zone" id="upload-zone"
-                     role="button" tabindex="0"
-                     aria-label="Drop zone — click or drag a file here">
-                    <input type="file" id="file-input"
-                           accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp,.tiff" hidden
-                           aria-label="Choose bill file">
-                    <div class="upload-icon">⬆️</div>
-                    <p class="upload-text">Drag &amp; drop your bill here</p>
-                    <p class="upload-sub">or click to browse &nbsp;•&nbsp; PDF, PNG, JPG (max 10 MB)</p>
+    <!-- ── MAIN AREA ──────────────────────────────────────────── -->
+    <div class="app-main">
+
+        <header class="main-topbar">
+            <div class="topbar-left">
+                <h1 class="page-title" id="page-title">Upload Bill</h1>
+                <span class="page-subtitle" id="page-subtitle">AI-powered extraction for MSEDCL, Adani &amp; Tata Power</span>
+            </div>
+            <div class="topbar-right">
+                <button class="topbar-icon-btn" aria-label="Search" tabindex="-1">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+                </button>
+                <button class="topbar-icon-btn" aria-label="Notifications" tabindex="-1">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-2.83-2h5.66A3 3 0 0110 18z"/></svg>
+                </button>
+                <div class="topbar-badge-pill">
+                    <span class="badge-dot-green"></span>
+                    PRO
                 </div>
+            </div>
+        </header>
 
-                <div class="file-preview hidden" id="file-preview">
-                    <div class="file-info">
-                        <span class="file-icon-sm">📎</span>
-                        <div>
-                            <p class="file-name" id="file-name"></p>
-                            <p class="file-size" id="file-size"></p>
+        <main class="wizard" id="wizard">
+
+            <!-- ── STEP 1 : Upload ────────────────────────────── -->
+            <section id="step-upload" class="step-section active" aria-label="Upload your electricity bill">
+                <div class="step1-scroll">
+                    <div class="step1-inner">
+
+                        <div class="upload-card">
+                            <div class="upload-card-icon">
+                                <svg viewBox="0 0 48 48" fill="none">
+                                    <rect width="48" height="48" rx="12" fill="#fef9c3"/>
+                                    <path d="M24 14v14M17 21l7-7 7 7" stroke="#eab308" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M14 34h20" stroke="#eab308" stroke-width="2.5" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <h2 class="upload-card-title">Upload Electricity Bill</h2>
+                            <p class="upload-card-desc">MSEDCL · Adani · Tata Power — any Indian utility bill (PDF or image)</p>
+
+                            <div class="upload-zone" id="upload-zone"
+                                 role="button" tabindex="0"
+                                 aria-label="Drop zone — click or drag a file here">
+                                <input type="file" id="file-input"
+                                       accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp,.tiff" hidden
+                                       aria-label="Choose bill file">
+                                <div class="upload-zone-inner">
+                                    <div class="upload-zone-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                                        </svg>
+                                    </div>
+                                    <p class="upload-zone-text">Drag &amp; drop your bill here</p>
+                                    <p class="upload-zone-sub">PDF, PNG, JPG &nbsp;·&nbsp; max 10 MB</p>
+                                </div>
+                            </div>
+
+                            <div class="file-preview hidden" id="file-preview">
+                                <div class="file-info">
+                                    <svg class="file-icon-sm" viewBox="0 0 20 20" fill="#22c55e">
+                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <div>
+                                        <p class="file-name" id="file-name"></p>
+                                        <p class="file-size" id="file-size"></p>
+                                    </div>
+                                </div>
+                                <button class="btn-remove" id="btn-remove" aria-label="Remove file">✕</button>
+                            </div>
+
+                            <button class="btn-primary" id="btn-extract" disabled>
+                                <span class="btn-text">Extract with AI</span>
+                                <span class="btn-loader hidden" id="extract-loader">
+                                    <span class="spinner"></span>Analysing…
+                                </span>
+                            </button>
                         </div>
+
+                        <div class="upload-stats-row">
+                            <div class="upload-stat-card">
+                                <span class="stat-value">2,400+</span>
+                                <span class="stat-label">Bills Processed</span>
+                            </div>
+                            <div class="upload-stat-card">
+                                <span class="stat-value">₹12L+</span>
+                                <span class="stat-label">Savings Generated</span>
+                            </div>
+                            <div class="upload-stat-card">
+                                <span class="stat-value">98%</span>
+                                <span class="stat-label">AI Accuracy</span>
+                            </div>
+                            <div class="upload-stat-card">
+                                <span class="stat-value">&lt;3s</span>
+                                <span class="stat-label">Avg. Processing</span>
+                            </div>
+                        </div>
+
                     </div>
-                    <button class="btn-remove" id="btn-remove" aria-label="Remove selected file">✕</button>
                 </div>
+            </section>
 
-                <button class="btn-primary" id="btn-extract" disabled>
-                    <span class="btn-text">Extract Bill Data</span>
-                    <span class="btn-loader hidden" id="extract-loader">
-                        <span class="spinner"></span>Analysing with AI…
-                    </span>
-                </button>
-            </div>
-        </div>
-    </section>
+            <!-- ── STEP 2 : Review ────────────────────────────── -->
+            <section id="step-review" class="step-section" aria-label="Review extracted bill data">
+                <div class="review-layout">
 
-    <!-- ── STEP 2 : Review (two-column) ───────────────────── -->
-    <section id="step-review" class="step-section" aria-label="Review extracted bill data">
+                    <!-- Left: perf card + form -->
+                    <div class="review-left">
 
-        <!-- Left 45 % : editable data fields -->
-        <div class="data-panel" id="data-panel">
-            <div class="panel-header">
-                <button class="btn-icon" id="btn-back-upload" aria-label="Back to upload">← Back</button>
-                <h2>🔍 Review Extracted Data</h2>
-                <p>Edit any field before generating the report</p>
-            </div>
+                        <div class="perf-card">
+                            <div class="perf-card-header">
+                                <div>
+                                    <p class="perf-card-eyebrow">PERFORMANCE MONITORING</p>
+                                    <h3 class="perf-card-title">Bill Analysis</h3>
+                                </div>
+                                <div class="solar-panel-3d">
+                                    <div class="panel-frame">
+                                        <div class="panel-grid">
+                                            <div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div>
+                                            <div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div>
+                                            <div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="perf-kpi-grid">
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Units Consumed</span>
+                                    <span class="kpi-value" id="kpi-units">—</span>
+                                    <span class="kpi-unit">kWh/month</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Electricity Rate</span>
+                                    <span class="kpi-value kpi-value--yellow" id="kpi-rate">—</span>
+                                    <span class="kpi-unit">₹/kWh</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Sanctioned Load</span>
+                                    <span class="kpi-value" id="kpi-load">—</span>
+                                    <span class="kpi-unit">kW</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Monthly Bill</span>
+                                    <span class="kpi-value kpi-value--green" id="kpi-amount">—</span>
+                                    <span class="kpi-unit">₹</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Billing Period</span>
+                                    <span class="kpi-value kpi-value--small" id="kpi-period">—</span>
+                                    <span class="kpi-unit">&nbsp;</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Recommended Solar</span>
+                                    <span class="kpi-value kpi-value--yellow" id="kpi-kw">—</span>
+                                    <span class="kpi-unit">kW system</span>
+                                </div>
+                            </div>
+                        </div>
 
-            <div class="data-grid" id="data-grid"
-                 role="form" aria-label="Extracted bill data fields"></div>
+                        <div class="form-card">
+                            <div class="form-card-header">
+                                <button class="btn-back" id="btn-back-upload" aria-label="Back to upload">
+                                    <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+                                    Back
+                                </button>
+                                <div>
+                                    <h3 class="form-card-title">Extracted Fields</h3>
+                                    <p class="form-card-sub">Edit any value before generating</p>
+                                </div>
+                            </div>
+                            <div class="data-grid" id="data-grid" role="form" aria-label="Extracted bill data fields"></div>
+                            <div class="form-card-footer">
+                                <button class="btn-primary" id="btn-generate">
+                                    <span class="btn-text">Generate Solar Report</span>
+                                    <span class="btn-loader hidden" id="generate-loader">
+                                        <span class="spinner"></span>Generating…
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
 
-            <div class="panel-footer">
-                <button class="btn-primary" id="btn-generate">
-                    <span class="btn-text">⚡ Generate Solar Report</span>
-                    <span class="btn-loader hidden" id="generate-loader">
-                        <span class="spinner"></span>Generating Proposal &amp; Excel…
-                    </span>
-                </button>
-            </div>
-        </div>
+                    </div>
 
-        <!-- Right 55 % : ROI chart -->
-        <div class="chart-panel" id="chart-panel">
-            <div class="chart-card">
-                <div class="chart-card-header">
-                    <h3>📊 ROI Comparison: Solar vs. No Solar</h3>
-                    <p>Cumulative cost over time &nbsp;·&nbsp; 3 % annual rate escalation &nbsp;·&nbsp; 90 % bill reduction with solar</p>
+                    <!-- Right: chart + sizing list -->
+                    <div class="review-right">
+
+                        <div class="right-card">
+                            <div class="right-card-header">
+                                <h3>ROI Comparison</h3>
+                                <p>Cumulative cost · Solar vs. No Solar · 3% annual escalation</p>
+                            </div>
+                            <div class="chart-canvas-wrapper">
+                                <canvas id="roiChart" aria-label="ROI bar chart"></canvas>
+                            </div>
+                            <p class="chart-live-note">Updates live as you edit fields on the left</p>
+                        </div>
+
+                        <div class="sizing-card">
+                            <h3 class="sizing-card-title">Solar System Points</h3>
+                            <ul class="sizing-list">
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--yellow"></span>
+                                    <span class="sz-label">System Size</span>
+                                    <span class="sz-value" id="sz-val-kw">—</span>
+                                </li>
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--green"></span>
+                                    <span class="sz-label">Solar Panels (400W)</span>
+                                    <span class="sz-value" id="sz-val-panels">—</span>
+                                </li>
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--blue"></span>
+                                    <span class="sz-label">Roof Area Required</span>
+                                    <span class="sz-value" id="sz-val-area">—</span>
+                                </li>
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--yellow"></span>
+                                    <span class="sz-label">Est. System Cost</span>
+                                    <span class="sz-value" id="sz-val-cost">—</span>
+                                </li>
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--green"></span>
+                                    <span class="sz-label">Annual Savings (Yr 1)</span>
+                                    <span class="sz-value" id="sz-val-savings">—</span>
+                                </li>
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--blue"></span>
+                                    <span class="sz-label">Payback Period</span>
+                                    <span class="sz-value" id="sz-val-payback">—</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                    </div>
                 </div>
-                <div class="chart-canvas-wrapper">
-                    <canvas id="roiChart" aria-label="Bar chart comparing electricity cost with and without solar"></canvas>
+            </section>
+
+            <!-- ── STEP 3 : Download ──────────────────────────── -->
+            <section id="step-generate" class="step-section" aria-label="Download your solar proposal">
+                <div class="review-layout">
+
+                    <!-- Left: summary perf card + read-only bill data -->
+                    <div class="review-left">
+
+                        <div class="perf-card">
+                            <div class="perf-card-header">
+                                <div>
+                                    <p class="perf-card-eyebrow">PROPOSAL SUMMARY</p>
+                                    <h3 class="perf-card-title">Solar System Design</h3>
+                                </div>
+                                <div class="solar-panel-3d">
+                                    <div class="panel-frame">
+                                        <div class="panel-grid">
+                                            <div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div>
+                                            <div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div>
+                                            <div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div><div class="panel-cell"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="perf-kpi-grid">
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">System Size</span>
+                                    <span class="kpi-value kpi-value--yellow" id="sum-kw">—</span>
+                                    <span class="kpi-unit">kW</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Solar Panels</span>
+                                    <span class="kpi-value" id="sum-panels">—</span>
+                                    <span class="kpi-unit">units × 400W</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Roof Area</span>
+                                    <span class="kpi-value" id="sum-area">—</span>
+                                    <span class="kpi-unit">sq.ft</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">System Cost</span>
+                                    <span class="kpi-value kpi-value--green" id="sum-cost">—</span>
+                                    <span class="kpi-unit">₹</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Annual Savings</span>
+                                    <span class="kpi-value kpi-value--green" id="sum-savings1">—</span>
+                                    <span class="kpi-unit">₹/year</span>
+                                </div>
+                                <div class="perf-kpi">
+                                    <span class="kpi-label">Payback Period</span>
+                                    <span class="kpi-value kpi-value--yellow" id="sum-payback">—</span>
+                                    <span class="kpi-unit">years</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-card">
+                            <div class="form-card-header">
+                                <div>
+                                    <h3 class="form-card-title">Bill Data</h3>
+                                    <p class="form-card-sub">Used to generate your proposal</p>
+                                </div>
+                            </div>
+                            <div class="data-grid" id="summary-grid" aria-label="Read-only bill summary"></div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right: success card + sizing list -->
+                    <div class="review-right">
+
+                        <div class="right-card right-card--success">
+                            <div class="success-icon">
+                                <svg viewBox="0 0 56 56" fill="none">
+                                    <circle cx="28" cy="28" r="28" fill="#dcfce7"/>
+                                    <path d="M16 28l8 8 16-16" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <h2 class="success-title">Proposal Ready!</h2>
+                            <p class="success-desc">Your Excel sizing sheet + branded PDF proposal are packaged and ready to download.</p>
+                            <a class="btn-download" id="btn-download" href="#" download="Energybae_Solar_Proposal.zip">
+                                <svg viewBox="0 0 20 20" fill="currentColor" width="17" height="17"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                Download Proposal (.zip)
+                            </a>
+                            <button class="btn-secondary" id="btn-new-bill">Process Another Bill</button>
+                        </div>
+
+                        <div class="sizing-card">
+                            <h3 class="sizing-card-title">Solar System Points</h3>
+                            <ul class="sizing-list">
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--yellow"></span>
+                                    <span class="sz-label">System Size</span>
+                                    <span class="sz-value" id="sum-sz-kw">—</span>
+                                </li>
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--green"></span>
+                                    <span class="sz-label">Solar Panels</span>
+                                    <span class="sz-value" id="sum-sz-panels">—</span>
+                                </li>
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--blue"></span>
+                                    <span class="sz-label">Roof Area</span>
+                                    <span class="sz-value" id="sum-sz-area">—</span>
+                                </li>
+                                <li class="sizing-item">
+                                    <span class="sz-dot sz-dot--yellow"></span>
+                                    <span class="sz-label">25-Year Net Savings</span>
+                                    <span class="sz-value" id="sum-savings25">—</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                    </div>
                 </div>
-                <p class="chart-legend-note">Live — updates as you edit the fields on the left</p>
-            </div>
-        </div>
+            </section>
 
-    </section>
+        </main>
+    </div>
+</div>
 
-    <!-- ── STEP 3 : Download (two-column) ─────────────────── -->
-    <section id="step-generate" class="step-section" aria-label="Download your solar proposal">
-
-        <!-- Left 45 % : read-only summary -->
-        <div class="data-panel data-panel--readonly" id="summary-panel">
-            <div class="panel-header">
-                <h2>📋 Proposal Summary</h2>
-                <p>Data used to generate your report</p>
-            </div>
-            <div class="data-grid" id="summary-grid"
-                 aria-label="Read-only summary of bill data"></div>
-        </div>
-
-        <!-- Right 55 % : success + download -->
-        <div class="result-panel" id="result-panel">
-            <div class="result-card">
-                <div class="result-icon">🎉</div>
-                <h2 class="result-title">Your Solar Proposal is Ready!</h2>
-                <p class="result-sub">
-                    The package includes your <strong>Excel sizing report</strong>
-                    and a branded <strong>PDF proposal</strong>.
-                </p>
-                <a class="btn-download" id="btn-download" href="#"
-                   download="Energybae_Solar_Proposal.zip">
-                    ⬇️ Download Proposal (.zip)
-                </a>
-                <button class="btn-secondary" id="btn-new-bill">Process Another Bill</button>
-            </div>
-        </div>
-
-    </section>
-
-</main>
-
-<!-- Accessibility live region -->
 <div id="statusMessage" aria-live="polite" class="sr-only"></div>
 
-<!-- Toast notification -->
 <div class="toast hidden" id="toast" role="alert" aria-atomic="true">
     <span class="toast-icon">⚠️</span>
     <p class="toast-message" id="toast-message"></p>
