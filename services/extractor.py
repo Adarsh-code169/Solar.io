@@ -96,37 +96,57 @@ def extract_bill_data(file_path: str) -> dict:
         uploaded_file = genai.upload_file(str(file_path), mime_type=mime_type)
         logger.info(f"File uploaded to Gemini: {uploaded_file.name}")
 
-        # Initialize model and generate response
-        model = genai.GenerativeModel("gemini-flash-latest")
-        response = model.generate_content(
-            [EXTRACTION_PROMPT, uploaded_file],
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.1,
-                max_output_tokens=2048,
-                response_mime_type="application/json",
-            ),
-        )
+    def repair_json(s):
+        """Attempts to fix truncated JSON strings."""
+        s = s.strip()
+        if not s.startswith('{'): return s
+        # Count braces
+        open_braces = s.count('{')
+        close_braces = s.count('}')
+        
+        # If truncated mid-key or mid-value
+        if s.endswith(','): s = s[:-1]
+        
+        # Add missing closing braces
+        while open_braces > close_braces:
+            s += '}'
+            close_braces += 1
+        return s
 
-        raw_text = response.text.strip()
-        logger.info(f"Gemini raw response length: {len(raw_text)} chars")
+    max_retries = 2
+    for attempt in range(max_retries):
+        try:
+            # Initialize model and generate response
+            model = genai.GenerativeModel("gemini-flash-latest")
+            response = model.generate_content(
+                [EXTRACTION_PROMPT, uploaded_file],
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.0, # Zero temperature for max consistency
+                    max_output_tokens=2048,
+                    response_mime_type="application/json",
+                ),
+            )
 
-        # Parse JSON directly (JSON mode ensures no markdown or extra text)
-        extracted_data = json.loads(raw_text)
-        logger.info(f"Successfully extracted {len(extracted_data)} fields")
+            raw_text = response.text.strip()
+            logger.info(f"Gemini raw response length: {len(raw_text)} chars")
 
-        # Validate critical fields
-        extracted_data = _validate_and_clean(extracted_data)
+            try:
+                extracted_data = json.loads(raw_text)
+            except json.JSONDecodeError:
+                # Try to repair the JSON if it's truncated
+                repaired_text = repair_json(raw_text)
+                extracted_data = json.loads(repaired_text)
+                logger.warning("Repaired truncated JSON response")
 
-        return extracted_data
+            logger.info(f"Successfully extracted {len(extracted_data)} fields")
+            return _validate_and_clean(extracted_data)
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Gemini response as JSON: {e}")
-        logger.error(f"Raw response: {raw_text[:500]}")
-        raise ValueError(f"AI returned invalid JSON. Raw response: {raw_text[:200]}")
-
-    except Exception as e:
-        logger.error(f"Gemini API error: {e}")
-        raise RuntimeError(f"AI extraction failed: {str(e)}")
+        except Exception as e:
+            if attempt == max_retries - 1:
+                logger.error(f"Final attempt failed: {e}")
+                raise RuntimeError(f"AI extraction failed after {max_retries} attempts: {str(e)}")
+            logger.warning(f"Attempt {attempt + 1} failed, retrying... Error: {e}")
+            continue
 
 
 def _validate_and_clean(data: dict) -> dict:
