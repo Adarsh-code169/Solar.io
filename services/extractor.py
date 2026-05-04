@@ -51,6 +51,21 @@ IMPORTANT RULES:
 """
 
 
+def _repair_json(s: str) -> str:
+    """Attempts to fix truncated JSON strings by closing open braces."""
+    s = s.strip()
+    if not s.startswith('{'):
+        return s
+    if s.endswith(','):
+        s = s[:-1]
+    open_braces = s.count('{')
+    close_braces = s.count('}')
+    while open_braces > close_braces:
+        s += '}'
+        close_braces += 1
+    return s
+
+
 def extract_bill_data(file_path: str) -> dict:
     """
     Extract electricity bill data from a PDF or image file using Gemini Vision.
@@ -91,37 +106,20 @@ def extract_bill_data(file_path: str) -> dict:
 
     logger.info(f"File MIME type: {mime_type}")
 
-    try:
-        # Upload file to Gemini
-        uploaded_file = genai.upload_file(str(file_path), mime_type=mime_type)
-        logger.info(f"File uploaded to Gemini: {uploaded_file.name}")
-
-    def repair_json(s):
-        """Attempts to fix truncated JSON strings."""
-        s = s.strip()
-        if not s.startswith('{'): return s
-        # Count braces
-        open_braces = s.count('{')
-        close_braces = s.count('}')
-        
-        # If truncated mid-key or mid-value
-        if s.endswith(','): s = s[:-1]
-        
-        # Add missing closing braces
-        while open_braces > close_braces:
-            s += '}'
-            close_braces += 1
-        return s
+    # Upload file to Gemini once (outside retry loop to avoid re-uploading)
+    uploaded_file = genai.upload_file(str(file_path), mime_type=mime_type)
+    logger.info(f"File uploaded to Gemini: {uploaded_file.name}")
 
     max_retries = 2
+    last_error = None
+
     for attempt in range(max_retries):
         try:
-            # Initialize model and generate response
             model = genai.GenerativeModel("gemini-flash-latest")
             response = model.generate_content(
                 [EXTRACTION_PROMPT, uploaded_file],
                 generation_config=genai.types.GenerationConfig(
-                    temperature=0.0, # Zero temperature for max consistency
+                    temperature=0.0,
                     max_output_tokens=2048,
                     response_mime_type="application/json",
                 ),
@@ -133,20 +131,22 @@ def extract_bill_data(file_path: str) -> dict:
             try:
                 extracted_data = json.loads(raw_text)
             except json.JSONDecodeError:
-                # Try to repair the JSON if it's truncated
-                repaired_text = repair_json(raw_text)
+                logger.warning("JSONDecodeError — attempting JSON repair...")
+                repaired_text = _repair_json(raw_text)
                 extracted_data = json.loads(repaired_text)
-                logger.warning("Repaired truncated JSON response")
+                logger.info("JSON repair successful")
 
             logger.info(f"Successfully extracted {len(extracted_data)} fields")
             return _validate_and_clean(extracted_data)
 
         except Exception as e:
-            if attempt == max_retries - 1:
-                logger.error(f"Final attempt failed: {e}")
-                raise RuntimeError(f"AI extraction failed after {max_retries} attempts: {str(e)}")
-            logger.warning(f"Attempt {attempt + 1} failed, retrying... Error: {e}")
+            last_error = e
+            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
             continue
+
+    logger.error(f"All {max_retries} attempts failed. Last error: {last_error}")
+    raise RuntimeError(f"AI extraction failed: {str(last_error)}")
+
 
 
 def _validate_and_clean(data: dict) -> dict:
