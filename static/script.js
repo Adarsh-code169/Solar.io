@@ -1,28 +1,30 @@
 /**
  * Solar Load Calculator — Frontend Logic
- * Handles: file upload, drag-and-drop, API calls, data preview, Excel download
+ * Handles: file upload, drag-and-drop, API calls, data preview,
+ *          live ROI chart, ZIP proposal download
  */
 
 // ── State ──────────────────────────────────────────────────────────────
-let selectedFile = null;
+let selectedFile  = null;
 let extractedData = {};
-let downloadUrl = "";
+let downloadUrl   = "";
+let roiChart      = null;   // Chart.js instance
 
 // ── DOM References ─────────────────────────────────────────────────────
-const uploadZone    = document.getElementById("upload-zone");
-const fileInput     = document.getElementById("file-input");
-const filePreview   = document.getElementById("file-preview");
-const fileName      = document.getElementById("file-name");
-const fileSize      = document.getElementById("file-size");
-const btnRemove     = document.getElementById("btn-remove");
-const btnExtract    = document.getElementById("btn-extract");
+const uploadZone   = document.getElementById("upload-zone");
+const fileInput    = document.getElementById("file-input");
+const filePreview  = document.getElementById("file-preview");
+const fileName     = document.getElementById("file-name");
+const fileSize     = document.getElementById("file-size");
+const btnRemove    = document.getElementById("btn-remove");
+const btnExtract   = document.getElementById("btn-extract");
 const extractLoader = document.getElementById("extract-loader");
-const extractText   = btnExtract.querySelector(".btn-text");
+const extractText  = btnExtract.querySelector(".btn-text");
 
-const step1         = document.getElementById("step-1");
-const step2         = document.getElementById("step-2");
-const step3         = document.getElementById("step-3");
-const dataGrid      = document.getElementById("data-grid");
+const step1 = document.getElementById("step-1");
+const step2 = document.getElementById("step-2");
+const step3 = document.getElementById("step-3");
+const dataGrid = document.getElementById("data-grid");
 
 const btnBackToOne  = document.getElementById("btn-back-1");
 const btnGenerate   = document.getElementById("btn-generate");
@@ -30,12 +32,12 @@ const generateLoader = document.getElementById("generate-loader");
 const generateText  = btnGenerate.querySelector(".btn-text");
 
 const outputFilename = document.getElementById("output-filename");
-const btnDownload   = document.getElementById("btn-download");
-const btnNew        = document.getElementById("btn-new");
+const btnDownload    = document.getElementById("btn-download");
+const btnNew         = document.getElementById("btn-new");
 
-const toast         = document.getElementById("toast");
-const toastMsg      = document.getElementById("toast-message");
-const toastClose    = document.getElementById("toast-close");
+const toast     = document.getElementById("toast");
+const toastMsg  = document.getElementById("toast-message");
+const toastClose = document.getElementById("toast-close");
 
 // ── Field display names ────────────────────────────────────────────────
 const FIELD_LABELS = {
@@ -53,11 +55,15 @@ const FIELD_LABELS = {
   additional_info:  "Additional Info",
 };
 
-// Fields shown at the top in the review grid (priority fields)
 const PRIORITY_FIELDS = [
   "consumer_name", "consumer_number", "billing_period",
   "units_consumed", "sanctioned_load", "tariff_category",
   "total_bill_amount", "electricity_rate",
+];
+
+const NUMERIC_FIELDS = [
+  "units_consumed", "sanctioned_load", "total_bill_amount",
+  "electricity_rate", "previous_reading", "current_reading",
 ];
 
 // ── Step Navigation ────────────────────────────────────────────────────
@@ -77,7 +83,7 @@ function showStep(num) {
   });
 }
 
-// ── Toast Notifications ────────────────────────────────────────────────
+
 function showToast(message, duration = 5000) {
   toastMsg.textContent = message;
   toast.classList.remove("hidden");
@@ -103,7 +109,7 @@ function setFile(file) {
   if (!file) return;
 
   const ext = file.name.split(".").pop().toLowerCase();
-  const allowed = ["pdf","png","jpg","jpeg","webp","bmp","tiff"];
+  const allowed = ["pdf", "png", "jpg", "jpeg", "webp", "bmp", "tiff"];
   if (!allowed.includes(ext)) {
     showToast(`Unsupported format: .${ext}. Use PDF, PNG, or JPG.`);
     return;
@@ -152,7 +158,6 @@ uploadZone.addEventListener("drop", (e) => {
 btnExtract.addEventListener("click", async () => {
   if (!selectedFile) return;
 
-  // Show loader
   extractText.classList.add("hidden");
   extractLoader.classList.remove("hidden");
   btnExtract.disabled = true;
@@ -183,7 +188,6 @@ btnExtract.addEventListener("click", async () => {
 function buildDataGrid(data) {
   dataGrid.innerHTML = "";
 
-  // Show priority fields first, then remaining non-null fields
   const otherFields = Object.keys(data).filter(
     k => !PRIORITY_FIELDS.includes(k) && data[k] !== null && data[k] !== undefined
   );
@@ -219,31 +223,176 @@ function buildDataGrid(data) {
     `;
     dataGrid.appendChild(row);
   });
+
+  // Render chart with initial data
+  updateROIChart(data);
 }
 
 function escapeHtml(str) {
-  return str.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// ── Live chart update on input edit ───────────────────────────────────
+dataGrid.addEventListener("input", () => {
+  const liveData = collectGridValues();
+  updateROIChart(liveData);
+});
+
+function collectGridValues() {
+  const result = {};
+  dataGrid.querySelectorAll(".data-input").forEach(input => {
+    const field = input.dataset.field;
+    let val = input.value.trim();
+    if (NUMERIC_FIELDS.includes(field) && val !== "") {
+      const num = parseFloat(val.replace(/[,₹Rs\s]/g, ""));
+      result[field] = isNaN(num) ? null : num;
+    } else {
+      result[field] = val || null;
+    }
+  });
+  return result;
+}
+
+// ── ROI Chart ──────────────────────────────────────────────────────────
+function computeCumulativeCost(monthlyBill, years) {
+  let total = 0;
+  for (let k = 0; k < years; k++) {
+    total += monthlyBill * 12 * Math.pow(1.03, k);
+  }
+  return Math.round(total);
+}
+
+function updateROIChart(data) {
+  const bill  = parseFloat(data.total_bill_amount) || 0;
+  const units = parseFloat(data.units_consumed)    || 0;
+  const rate  = parseFloat(data.electricity_rate)  || 0;
+
+  // Derive monthly baseline: prefer total_bill_amount, fall back to units × rate
+  const monthlyBill = bill > 0 ? bill : (units > 0 && rate > 0 ? units * rate : 0);
+
+  const horizons = [5, 10, 20];
+  const withoutSolar = horizons.map(y => computeCumulativeCost(monthlyBill, y));
+  const withSolar    = horizons.map(y => Math.round(computeCumulativeCost(monthlyBill, y) * 0.10));
+
+  const ctx = document.getElementById("roiChart").getContext("2d");
+
+  if (roiChart) {
+    roiChart.data.datasets[0].data = withoutSolar;
+    roiChart.data.datasets[1].data = withSolar;
+    roiChart.update("active");
+    return;
+  }
+
+  roiChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["5 Years", "10 Years", "20 Years"],
+      datasets: [
+        {
+          label: "Without Solar",
+          data: withoutSolar,
+          backgroundColor: "rgba(37, 99, 235, 0.75)",
+          borderColor: "rgba(37, 99, 235, 1)",
+          borderWidth: 1.5,
+          borderRadius: 6,
+          borderSkipped: false,
+        },
+        {
+          label: "With Solar",
+          data: withSolar,
+          backgroundColor: "rgba(16, 185, 129, 0.75)",
+          borderColor: "rgba(16, 185, 129, 1)",
+          borderWidth: 1.5,
+          borderRadius: 6,
+          borderSkipped: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "top",
+          labels: {
+            font: { family: "'Inter', sans-serif", size: 12, weight: "600" },
+            color: "#475569",
+            usePointStyle: true,
+            pointStyleWidth: 10,
+            padding: 20,
+          },
+        },
+        tooltip: {
+          backgroundColor: "#0f172a",
+          titleFont: { family: "'Inter', sans-serif", size: 13, weight: "700" },
+          bodyFont:  { family: "'Inter', sans-serif", size: 12 },
+          padding: 14,
+          cornerRadius: 10,
+          callbacks: {
+            label(ctx) {
+              const val = ctx.parsed.y;
+              return `  ${ctx.dataset.label}: ${val.toLocaleString("en-IN", {
+                style: "currency", currency: "INR", maximumFractionDigits: 0,
+              })}`;
+            },
+            afterBody(items) {
+              if (items.length === 2) {
+                const saved = items[0].parsed.y - items[1].parsed.y;
+                return [
+                  "",
+                  `  💰 Savings: ${saved.toLocaleString("en-IN", {
+                    style: "currency", currency: "INR", maximumFractionDigits: 0,
+                  })}`,
+                ];
+              }
+              return [];
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { family: "'Inter', sans-serif", size: 12, weight: "600" },
+            color: "#475569",
+          },
+        },
+        y: {
+          grid: { color: "rgba(226, 232, 240, 0.8)" },
+          ticks: {
+            font: { family: "'Inter', sans-serif", size: 11 },
+            color: "#94a3b8",
+            callback(val) {
+              if (val >= 1_00_00_000) return `₹${(val / 1_00_00_000).toFixed(1)}Cr`;
+              if (val >= 1_00_000)   return `₹${(val / 1_00_000).toFixed(0)}L`;
+              if (val >= 1_000)      return `₹${(val / 1_000).toFixed(0)}K`;
+              return `₹${val}`;
+            },
+          },
+        },
+      },
+    },
+  });
 }
 
 // ── Back to Step 1 ─────────────────────────────────────────────────────
 btnBackToOne.addEventListener("click", () => showStep(1));
 
-// ── Generate Excel (Step 2 → 3) ────────────────────────────────────────
+// ── Generate ZIP (Step 2 → 3) ──────────────────────────────────────────
 btnGenerate.addEventListener("click", async () => {
-  // Collect edited values from the grid inputs
-  const inputs = dataGrid.querySelectorAll(".data-input");
+  const inputs  = dataGrid.querySelectorAll(".data-input");
   const payload = {};
 
   inputs.forEach(input => {
     const field = input.dataset.field;
     let val = input.value.trim();
-
-    // Attempt numeric coercion for known numeric fields
-    const numericFields = [
-      "units_consumed", "sanctioned_load", "total_bill_amount",
-      "electricity_rate", "previous_reading", "current_reading",
-    ];
-    if (numericFields.includes(field) && val !== "") {
+    if (NUMERIC_FIELDS.includes(field) && val !== "") {
       const num = parseFloat(val.replace(/[,₹Rs\s]/g, ""));
       payload[field] = isNaN(num) ? null : num;
     } else {
@@ -251,7 +400,6 @@ btnGenerate.addEventListener("click", async () => {
     }
   });
 
-  // Show loader
   generateText.classList.add("hidden");
   generateLoader.classList.remove("hidden");
   btnGenerate.disabled = true;
@@ -262,14 +410,21 @@ btnGenerate.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const json = await res.json();
 
-    if (!res.ok) throw new Error(json.error || "Generation failed");
+    // Errors still come back as JSON with a non-2xx status
+    if (!res.ok) {
+      const json = await res.json();
+      throw new Error(json.error || "Generation failed");
+    }
 
-    downloadUrl = json.download_url;
-    outputFilename.textContent = json.filename;
+    // Success: backend returns a ZIP blob directly
+    const blob = await res.blob();
+    if (downloadUrl) URL.revokeObjectURL(downloadUrl);   // release previous object URL
+    downloadUrl = URL.createObjectURL(blob);
+
+    outputFilename.textContent = "Energybae_Solar_Proposal.zip";
     btnDownload.href = downloadUrl;
-    btnDownload.download = json.filename;
+    btnDownload.download = "Energybae_Solar_Proposal.zip";
     showStep(3);
 
   } catch (err) {
@@ -283,9 +438,16 @@ btnGenerate.addEventListener("click", async () => {
 
 // ── Process Another Bill ───────────────────────────────────────────────
 btnNew.addEventListener("click", () => {
+  if (downloadUrl) {
+    URL.revokeObjectURL(downloadUrl);
+    downloadUrl = "";
+  }
+  if (roiChart) {
+    roiChart.destroy();
+    roiChart = null;
+  }
   clearFile();
   extractedData = {};
-  downloadUrl = "";
   dataGrid.innerHTML = "";
   showStep(1);
 });

@@ -10,8 +10,10 @@ Usage:
     python app.py
 """
 
+import io
 import os
 import logging
+import zipfile
 from pathlib import Path
 from datetime import datetime
 
@@ -25,6 +27,7 @@ from config import (
 )
 from services.extractor import extract_bill_data
 from services.excel_handler import populate_template, get_template_info, create_template
+from services.pdf_generator import generate_pdf_proposal
 
 # ── Logging Setup ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -129,10 +132,12 @@ def extract():
 @app.route("/api/generate", methods=["POST"])
 def generate():
     """
-    Accept extracted/edited data and generate the filled Excel report.
+    Accept extracted/edited data and generate a ZIP containing:
+    - Populated Excel solar sizing report
+    - Branded PDF proposal (Energybae Solar Proposal)
 
     Expects JSON body with bill data fields.
-    Returns the filename of the generated Excel file.
+    Returns the ZIP file directly as a download.
     """
     logger.info("=== GENERATE REQUEST ===")
 
@@ -141,20 +146,32 @@ def generate():
         return jsonify({"error": "No data provided."}), 400
 
     try:
-        # Populate template with data
-        output_path = populate_template(data)
-        output_filename = Path(output_path).name
+        # Generate Excel report
+        excel_path = populate_template(data)
+        logger.info(f"Excel generated: {Path(excel_path).name}")
 
-        logger.info(f"Excel generated: {output_filename}")
-        return jsonify({
-            "success": True,
-            "filename": output_filename,
-            "download_url": f"/api/download/{output_filename}",
-        })
+        # Generate PDF proposal
+        pdf_bytes = generate_pdf_proposal(data)
+        logger.info(f"PDF generated: {len(pdf_bytes)} bytes")
+
+        # Pack both into an in-memory ZIP
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(excel_path, Path(excel_path).name)
+            zf.writestr("Energybae_Solar_Proposal.pdf", pdf_bytes)
+        zip_buffer.seek(0)
+
+        logger.info("ZIP package ready for download")
+        return send_file(
+            zip_buffer,
+            as_attachment=True,
+            download_name="Energybae_Solar_Proposal.zip",
+            mimetype="application/zip",
+        )
 
     except Exception as e:
-        logger.error(f"Excel generation error: {e}", exc_info=True)
-        return jsonify({"error": f"Excel generation failed: {str(e)}"}), 500
+        logger.error(f"Generation error: {e}", exc_info=True)
+        return jsonify({"error": f"Report generation failed: {str(e)}"}), 500
 
 
 @app.route("/api/download/<filename>", methods=["GET"])

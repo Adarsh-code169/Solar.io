@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="bg-particles" id="particles"></div>
@@ -68,25 +69,37 @@
                 <p>Review and edit the extracted data before generating the report</p>
             </div>
             <div class="data-grid" id="data-grid"></div>
+
+            <div class="chart-container" id="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">📊 ROI Comparison: Solar vs. No Solar</h3>
+                    <p class="chart-sub">Cumulative electricity cost over time (3% annual rate escalation · 90% bill reduction with solar)</p>
+                </div>
+                <div class="chart-canvas-wrapper">
+                    <canvas id="roiChart"></canvas>
+                </div>
+            </div>
+
             <div class="btn-group">
                 <button class="btn-secondary" id="btn-back-1">← Back</button>
                 <button class="btn-primary" id="btn-generate">
                     <span class="btn-text">Generate Solar Report</span>
-                    <span class="btn-loader hidden" id="generate-loader"><span class="spinner"></span>Generating Excel...</span>
+                    <span class="btn-loader hidden" id="generate-loader"><span class="spinner"></span>Generating Proposal & Excel...</span>
                 </button>
             </div>
         </section>
 
         <section class="card step-section hidden" id="step-3">
             <div class="card-header">
-                <h2>✅ Report Ready!</h2>
-                <p>Your solar load calculation report has been generated</p>
+                <h2>✅ Proposal Ready!</h2>
+                <p>Your branded solar proposal package has been generated</p>
             </div>
             <div class="success-container">
                 <div class="success-icon">🎉</div>
-                <p class="success-text">Excel report generated successfully!</p>
+                <p class="success-text">Your solar proposal package is ready!</p>
+                <p class="success-sub">Includes the Excel sizing report <strong>+</strong> branded PDF proposal</p>
                 <p class="success-filename" id="output-filename"></p>
-                <a class="btn-download" id="btn-download" href="#" download>⬇️ Download Solar Report (.xlsx)</a>
+                <a class="btn-download" id="btn-download" href="#" download>⬇️ Download Solar Proposal (.zip)</a>
                 <button class="btn-secondary" id="btn-new" style="margin-top:16px">Process Another Bill</button>
             </div>
         </section>

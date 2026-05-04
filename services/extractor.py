@@ -18,36 +18,63 @@ logger = logging.getLogger(__name__)
 # ── Gemini Configuration ───────────────────────────────────────────────
 genai.configure(api_key=GEMINI_API_KEY)
 
-EXTRACTION_PROMPT = """You are an expert electricity bill data extractor for Indian electricity bills (especially MSEDCL Maharashtra bills).
+EXTRACTION_PROMPT = """You are an expert electricity bill data extractor specializing in Indian utility bills.
 
-Analyze this electricity bill image/document carefully and extract ALL the following fields. Return ONLY a valid JSON object with no markdown formatting, no code blocks, no extra text.
+You will receive a scanned or photographed electricity bill. It may be from any of these utilities:
+- MSEDCL (Maharashtra State Electricity Distribution Co. Ltd) — Maharashtra
+- Adani Electricity (formerly BSES Rajdhani) — Mumbai
+- Tata Power — Mumbai and other regions
+- BEST (Brihanmumbai Electric Supply and Transport)
+- Any other Indian state electricity board (KSEB, BESCOM, TANGEDCO, etc.)
+
+Extract ALL the following fields. Return ONLY a valid JSON object with no markdown formatting, no code blocks, no extra text.
 
 Required JSON structure:
 {
     "consumer_name": "Full name of the consumer/account holder",
-    "consumer_number": "Consumer number / Account ID",
-    "meter_number": "Meter number if visible",
-    "billing_period": "Billing period (e.g., 'Jan 2025 - Feb 2025')",
-    "units_consumed": <number of kWh units consumed as integer>,
+    "consumer_number": "Consumer number / Account ID / Service number / BP number",
+    "meter_number": "Meter number / Meter serial number if visible",
+    "billing_period": "Billing period range (e.g., 'Jan 2025 - Feb 2025')",
+    "units_consumed": <kWh units consumed as integer — see aliases below>,
     "sanctioned_load": <sanctioned/connected load in kW as float>,
-    "tariff_category": "Tariff category/slab (e.g., 'LT-I Residential')",
-    "total_bill_amount": <total bill amount in rupees as float>,
-    "electricity_rate": <average rate per unit in ₹/kWh as float>,
+    "tariff_category": "Tariff category/slab (e.g., 'LT-I Residential', 'Domestic')",
+    "total_bill_amount": <total payable amount in rupees as float — look for 'Net Amount', 'Total Amount Payable', 'Amount Due'>,
+    "electricity_rate": <average rate per unit in Rs/kWh as float — calculate if not shown>,
     "supply_type": "Single Phase / Three Phase",
     "due_date": "Payment due date if visible",
     "previous_reading": <previous meter reading as integer or null>,
     "current_reading": <current meter reading as integer or null>,
-    "additional_info": "Any other relevant information from the bill"
+    "additional_info": "Discom name, tariff slab details, or any other useful info"
 }
 
-IMPORTANT RULES:
-1. Extract EXACT values as printed on the bill
-2. For numeric fields, return numbers (not strings)
-3. If a field is not found, use null
-4. For units_consumed, this is the MOST CRITICAL field - look for "Units Consumed", "Consumption", "kWh", or calculate from meter readings
-5. For electricity_rate, calculate as total_bill_amount / units_consumed if not explicitly shown
-6. For sanctioned_load, look for "Connected Load", "Sanctioned Load", "Contract Demand"
-7. Return ONLY the JSON object, nothing else
+FIELD ALIASES BY UTILITY:
+
+units_consumed — look for any of these labels:
+  MSEDCL:        "Units Consumed", "Net Units", "Consumption (kWh)", "EB Units"
+  Adani:         "Net Consumption", "Billed Units", "Units (kWh)"
+  Tata Power:    "kWh Consumed", "Total Units", "Consumption"
+  Generic:       "Units", "kWh", "Electrical Units", "Energy Consumed"
+  FALLBACK: If not found directly, compute: current_reading - previous_reading
+
+sanctioned_load — look for:
+  "Sanctioned Load", "Connected Load", "Contract Demand", "Contracted Demand", "Load (kW)"
+
+total_bill_amount — look for:
+  "Net Amount Payable", "Total Amount", "Amount Due", "Bill Amount", "Payable Amount"
+  Use the FINAL total after all charges and taxes. Exclude surcharges listed separately.
+
+electricity_rate — look for:
+  "Rate per Unit", "Per Unit Rate", "Energy Charge Rate"
+  FALLBACK: Calculate as total_bill_amount / units_consumed
+
+EXTRACTION RULES:
+1. Return numbers for numeric fields — never strings like "500 kWh"
+2. Strip currency symbols (Rs, ₹), commas, and units (kW, kWh) from numeric values
+3. If a field is genuinely absent from the bill, use null
+4. For units_consumed, this is the MOST CRITICAL field — try every alias and the meter reading difference before returning null
+5. Do NOT confuse slab-wise unit breakdowns with total consumption — extract the TOTAL units
+6. For MSEDCL bills with multiple slabs (0-100, 101-300, 301+), sum them or use the printed total
+7. Return ONLY the JSON object, nothing else, no explanation
 """
 
 
@@ -148,12 +175,12 @@ def extract_bill_data(file_path: str) -> dict:
     raise RuntimeError(f"AI extraction failed: {str(last_error)}")
 
 
-
 def _validate_and_clean(data: dict) -> dict:
     """
-    Validate and clean extracted data, ensuring types are correct.
+    Validate and clean extracted data, ensuring types are correct and
+    applying fallback calculations where fields are missing.
     """
-    # Ensure numeric fields are actually numbers
+    # ── 1. Cast numeric fields ─────────────────────────────────────────
     numeric_fields = [
         "units_consumed",
         "sanctioned_load",
@@ -167,23 +194,67 @@ def _validate_and_clean(data: dict) -> dict:
         value = data.get(field)
         if value is not None and not isinstance(value, (int, float)):
             try:
-                # Try to parse string to number (remove commas, ₹ symbol, etc.)
-                cleaned = str(value).replace(",", "").replace("₹", "").replace("Rs", "").strip()
+                cleaned = (
+                    str(value)
+                    .replace(",", "")
+                    .replace("₹", "")
+                    .replace("Rs", "")
+                    .replace("rs", "")
+                    .replace("kWh", "")
+                    .replace("kW", "")
+                    .strip()
+                )
                 data[field] = float(cleaned)
             except (ValueError, TypeError):
                 logger.warning(f"Could not convert {field}='{value}' to number, setting to null")
                 data[field] = None
 
-    # Calculate electricity rate if missing but we have bill amount and units
+    # ── 2. Fallback: calculate units_consumed from meter readings ──────
+    if data.get("units_consumed") is None:
+        prev = data.get("previous_reading")
+        curr = data.get("current_reading")
+        if (
+            prev is not None
+            and curr is not None
+            and isinstance(prev, (int, float))
+            and isinstance(curr, (int, float))
+            and curr > prev
+        ):
+            data["units_consumed"] = int(curr - prev)
+            logger.info(f"Calculated units_consumed from meter readings: {data['units_consumed']}")
+
+    # ── 3. Fallback: calculate electricity_rate from bill and units ────
     if data.get("electricity_rate") is None:
         bill_amount = data.get("total_bill_amount")
         units = data.get("units_consumed")
         if bill_amount and units and units > 0:
             data["electricity_rate"] = round(bill_amount / units, 2)
-            logger.info(f"Calculated electricity_rate: ₹{data['electricity_rate']}/kWh")
+            logger.info(f"Calculated electricity_rate: Rs{data['electricity_rate']}/kWh")
 
-    # Ensure units_consumed is an integer
+    # ── 4. Type enforcement and range validation ───────────────────────
     if data.get("units_consumed") is not None:
-        data["units_consumed"] = int(data["units_consumed"])
+        data["units_consumed"] = max(0, int(data["units_consumed"]))
+
+    if data.get("total_bill_amount") is not None:
+        data["total_bill_amount"] = max(0.0, float(data["total_bill_amount"]))
+
+    if data.get("sanctioned_load") is not None:
+        load = float(data["sanctioned_load"])
+        # Clamp to physically reasonable range (0.5 kW – 200 kW)
+        data["sanctioned_load"] = round(max(0.5, min(200.0, load)), 3)
+
+    if data.get("electricity_rate") is not None:
+        data["electricity_rate"] = round(float(data["electricity_rate"]), 2)
+
+    # ── 5. Strip whitespace from string fields ─────────────────────────
+    string_fields = [
+        "consumer_name", "consumer_number", "meter_number",
+        "billing_period", "tariff_category", "supply_type",
+        "due_date", "additional_info",
+    ]
+    for field in string_fields:
+        val = data.get(field)
+        if isinstance(val, str):
+            data[field] = val.strip() or None
 
     return data
