@@ -228,6 +228,9 @@ def extract_bill_data(file_path: str) -> dict:
     uploaded_file = genai.upload_file(str(file_path), mime_type=mime_type)
     logger.info(f"Uploaded to Gemini: {uploaded_file.name}")
 
+    import time
+    from google.api_core import exceptions
+
     last_error = None
     for attempt in range(3):
         try:
@@ -254,11 +257,17 @@ def extract_bill_data(file_path: str) -> dict:
 
             return _validate_and_clean(data)
 
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Attempt {attempt + 1}/3 failed: {e}")
+        except exceptions.ResourceExhausted as e:
+            last_error = "API Quota Exceeded (429). Please wait a minute and try again."
+            logger.warning(f"Attempt {attempt + 1}/3: Quota exceeded. Waiting...")
+            time.sleep(2 * (attempt + 1))  # Exponential-ish backoff
 
-    raise RuntimeError(f"AI extraction failed after 3 attempts: {last_error}")
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"Attempt {attempt + 1}/3 failed: {e}")
+            time.sleep(1)
+
+    raise RuntimeError(f"AI extraction failed: {last_error}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
