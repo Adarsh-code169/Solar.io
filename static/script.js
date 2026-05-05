@@ -42,6 +42,9 @@ const FIELD_LABELS = {
     tariff_category:   "Tariff Category",
     total_bill_amount: "Total Bill Amount (₹)",
     electricity_rate:  "Electricity Rate (₹/kWh)",
+    energy_charges:    "Energy Charges (₹)",
+    fixed_charges:     "Fixed / Meter Charges (₹)",
+    taxes_and_duties:  "Taxes & Duties (₹)",
     meter_number:      "Meter Number",
     supply_type:       "Supply Type",
     due_date:          "Due Date",
@@ -52,11 +55,13 @@ const PRIORITY_FIELDS = [
     "consumer_name", "consumer_number", "billing_period",
     "units_consumed", "sanctioned_load", "tariff_category",
     "total_bill_amount", "electricity_rate",
+    "energy_charges", "fixed_charges", "taxes_and_duties",
 ];
 
 const NUMERIC_FIELDS = [
     "units_consumed", "sanctioned_load", "total_bill_amount",
     "electricity_rate", "previous_reading", "current_reading",
+    "energy_charges", "fixed_charges", "taxes_and_duties",
 ];
 
 
