@@ -33,11 +33,13 @@ TEMPLATE_FILE = TEMPLATE_DIR / "solar_calculator_template.xlsx"
 
 # ── Solar Calculation Defaults ─────────────────────────────────────────
 SOLAR_DEFAULTS = {
-    "peak_sun_hours": 5.0,           # hours/day (India average)
-    "panel_wattage": 540,            # watts per panel
-    "cost_per_kw": 55000,            # ₹ per kW installed
+    "peak_sun_hours": 4.5,           # hours/day — conservative India average (was 5.0, overstated yield)
+    "performance_ratio": 0.75,       # system efficiency: inverter + cable + dust + temp derating
+    "growth_buffer": 1.20,           # 20% oversize for degradation, cloudy days, future load growth
+    "panel_wattage": 400,            # watts per panel (standard residential/commercial)
+    "cost_per_kw": 55000,            # ₹ per kW installed (all-in)
     "system_life_years": 25,
-    "annual_degradation": 0.005,     # 0.5% per year
-    "annual_tariff_increase": 0.05,  # 5% per year
-    "co2_per_kwh": 0.82,            # kg CO₂ per kWh (India grid)
+    "annual_degradation": 0.005,     # 0.5% per year panel efficiency loss
+    "annual_tariff_increase": 0.05,  # 5% per year tariff escalation
+    "co2_per_kwh": 0.82,            # kg CO₂ per kWh (India grid emission factor)
 }

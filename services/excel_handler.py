@@ -138,11 +138,13 @@ def create_template():
     ws2["A2"].font = subheader_font
 
     params = [
-        ("A3", "Peak Sun Hours (hrs/day)", "B3", SOLAR_DEFAULTS["peak_sun_hours"], "INPUT"),
-        ("A4", "Panel Wattage (W)",        "B4", SOLAR_DEFAULTS["panel_wattage"], "INPUT"),
-        ("A5", "Cost per kW (₹)",          "B5", SOLAR_DEFAULTS["cost_per_kw"], "INPUT"),
-        ("A6", "System Life (years)",       "B6", SOLAR_DEFAULTS["system_life_years"], "INPUT"),
-        ("A7", "Annual Tariff Increase (%)", "B7", SOLAR_DEFAULTS["annual_tariff_increase"], "INPUT"),
+        ("A3", "Peak Sun Hours (hrs/day)",    "B3", SOLAR_DEFAULTS["peak_sun_hours"],        "INPUT"),
+        ("A4", "Performance Ratio (0–1)",     "B4", SOLAR_DEFAULTS["performance_ratio"],     "INPUT"),
+        ("A5", "Growth Buffer (1 = no buffer)","B5", SOLAR_DEFAULTS["growth_buffer"],        "INPUT"),
+        ("A6", "Panel Wattage (W)",           "B6", SOLAR_DEFAULTS["panel_wattage"],         "INPUT"),
+        ("A7", "Cost per kW (₹)",             "B7", SOLAR_DEFAULTS["cost_per_kw"],           "INPUT"),
+        ("A8", "System Life (years)",         "B8", SOLAR_DEFAULTS["system_life_years"],     "INPUT"),
+        ("A9", "Annual Tariff Increase (%)",  "B9", SOLAR_DEFAULTS["annual_tariff_increase"],"INPUT"),
     ]
 
     for label_cell, label, value_cell, value, cell_type in params:
@@ -165,12 +167,16 @@ def create_template():
     ws2["C9"] = "Type"
     ws2["C9"].font = Font(name="Calibri", bold=True, size=10, color="666666")
 
+    # Row 11 onwards (params now occupy rows 3–9, so formulas start at 11)
+    # System size formula:
+    #   daily_kWh / (peak_sun_hours × performance_ratio) × growth_buffer → round up
+    #   This matches pdf_generator.py and script.js exactly.
     formulas = [
-        ("A10", "Daily Consumption (kWh/day)",    "B10", "='Bill Data'!B6/30",                          "FORMULA"),
-        ("A11", "Recommended System Size (kW)",    "B11", "=ROUND(B10/B3, 1)",                          "FORMULA"),
-        ("A12", "Number of Panels",                "B12", "=ROUNDUP(B11*1000/B4, 0)",                   "FORMULA"),
-        ("A13", "Roof Area Required (sq ft)",      "B13", "=B12*20",                                    "FORMULA"),
-        ("A14", "Annual Generation (kWh)",         "B14", "=ROUND(B11*B3*365, 0)",                      "FORMULA"),
+        ("A11", "Daily Consumption (kWh/day)",   "B11", "='Bill Data'!B6/30",                                 "FORMULA"),
+        ("A12", "Recommended System Size (kW)",   "B12", "=ROUNDUP((B11/(B3*B4))*B5, 0)",                     "FORMULA"),
+        ("A13", "Number of Panels (400W)",        "B13", "=ROUNDUP(B12*1000/B6, 0)",                          "FORMULA"),
+        ("A14", "Roof Area Required (sq ft)",     "B14", "=B13*20",                                           "FORMULA"),
+        ("A15", "Annual Generation (kWh)",        "B15", "=ROUND(B12*B3*B4*365, 0)",                         "FORMULA"),
     ]
 
     for label_cell, label, value_cell, formula, cell_type in formulas:
@@ -189,19 +195,19 @@ def create_template():
         ws2[f"C{row_num}"].font = Font(name="Calibri", size=9, color="999999", italic=True)
         ws2[f"C{row_num}"].alignment = Alignment(horizontal="center")
 
-    # ── Financial Analysis ─────────────────────────────────────────
-    ws2["A16"] = "Financial Analysis"
-    ws2["A16"].font = subheader_font
+    # ── Financial Analysis (row refs updated: B12=kW, B15=annual gen, B7=cost/kW, B8=life, B9=tariff increase)
+    ws2["A17"] = "Financial Analysis"
+    ws2["A17"].font = subheader_font
 
     financial_formulas = [
-        ("A17", "Annual Savings (₹)",              "B17", "=ROUND('Bill Data'!B10*B14, 0)",                              currency_format, "FORMULA"),
-        ("A18", "System Cost (₹)",                 "B18", "=ROUND(B11*B5, 0)",                                          currency_format, "FORMULA"),
-        ("A19", "Govt Subsidy (₹) — up to 3kW",   "B19", '=IF(B11<=2, 30000*B11, IF(B11<=3, 30000*2+18000*(B11-2), 30000*2+18000*1))', currency_format, "FORMULA"),
-        ("A20", "Net Investment (₹)",              "B20", "=B18-B19",                                                   currency_format, "FORMULA"),
-        ("A21", "Simple Payback Period (years)",   "B21", "=ROUND(B20/B17, 1)",                                         "0.0",           "FORMULA"),
-        ("A22", "25-Year Savings (₹)",             "B22", "=ROUND(B17*((1-(1+B7)^B6)/(-B7)), 0)",                       currency_format, "FORMULA"),
-        ("A23", "Return on Investment (%)",        "B23", "=ROUND((B22-B20)/B20*100, 1)",                               "0.0\"%\"",      "FORMULA"),
-        ("A24", "CO₂ Offset (tonnes/year)",        "B24", f"=ROUND(B14*{SOLAR_DEFAULTS['co2_per_kwh']}/1000, 1)",       "0.0",           "FORMULA"),
+        ("A18", "Annual Savings (₹)",              "B18", "=ROUND('Bill Data'!B10*B15, 0)",                                  currency_format, "FORMULA"),
+        ("A19", "System Cost (₹)",                 "B19", "=ROUND(B12*B7, 0)",                                               currency_format, "FORMULA"),
+        ("A20", "Govt Subsidy (₹) — up to 3kW",   "B20", '=IF(B12<=2, 30000*B12, IF(B12<=3, 30000*2+18000*(B12-2), 30000*2+18000*1))', currency_format, "FORMULA"),
+        ("A21", "Net Investment (₹)",              "B21", "=B19-B20",                                                        currency_format, "FORMULA"),
+        ("A22", "Simple Payback Period (years)",   "B22", "=ROUND(B21/B18, 1)",                                              "0.0",           "FORMULA"),
+        ("A23", "25-Year Savings (₹)",             "B23", "=ROUND(B18*((1-(1+B9)^B8)/(-B9)), 0)",                            currency_format, "FORMULA"),
+        ("A24", "Return on Investment (%)",        "B24", "=ROUND((B23-B21)/B21*100, 1)",                                    "0.0\"%\"",      "FORMULA"),
+        ("A25", "CO₂ Offset (tonnes/year)",        "B25", f"=ROUND(B15*{SOLAR_DEFAULTS['co2_per_kwh']}/1000, 1)",            "0.0",           "FORMULA"),
     ]
 
     for label_cell, label, value_cell, formula, num_format, cell_type in financial_formulas:

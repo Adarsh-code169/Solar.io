@@ -61,8 +61,17 @@ def _compute_sizing(data: dict) -> dict:
     if rate == 0 and units > 0:
         rate = round(bill / units, 2)
 
-    recommended_kw    = math.ceil(units / 120) if units > 0 else 0
-    panel_count       = math.ceil(recommended_kw / 0.4) if recommended_kw > 0 else 0
+    # Industry-standard sizing formula:
+    #   Monthly yield per kW = peak_sun_hours × 30 days × performance_ratio
+    #                        = 4.5h × 30 × 0.75 = 101.25 kWh/kW/month
+    #   +20 % buffer for degradation, cloudy days, and future load growth
+    PEAK_SUN_HOURS     = 4.5
+    PERFORMANCE_RATIO  = 0.75
+    GROWTH_BUFFER      = 1.20
+    monthly_yield_per_kw = PEAK_SUN_HOURS * 30 * PERFORMANCE_RATIO   # 101.25
+
+    recommended_kw    = math.ceil((units / monthly_yield_per_kw) * GROWTH_BUFFER) if units > 0 else 0
+    panel_count       = math.ceil(recommended_kw * 1000 / 400) if recommended_kw > 0 else 0
     roof_area_sqft    = recommended_kw * 100
     system_cost       = recommended_kw * 55_000
 

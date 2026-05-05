@@ -193,13 +193,22 @@ uploadZone.addEventListener("drop", (e) => {
 // SIZING MATH  (mirrors pdf_generator.py)
 // ════════════════════════════════════════════════════════════════
 
+// Solar sizing constants — match pdf_generator.py exactly
+const PEAK_SUN_HOURS    = 4.5;   // h/day, India average
+const PERF_RATIO        = 0.75;  // system efficiency (inverter + cable + dust + temp)
+const GROWTH_BUFFER     = 1.20;  // 20% for degradation, cloudy days, future growth
+const MONTHLY_YIELD_PER_KW = PEAK_SUN_HOURS * 30 * PERF_RATIO;  // 101.25 kWh/kW/month
+
 function computeSizing(data) {
     const units   = parseFloat(data.units_consumed)    || 0;
     const rate    = parseFloat(data.electricity_rate)  || 0;
     const bill    = parseFloat(data.total_bill_amount) || 0;
     const monthly = bill > 0 ? bill : (units * rate || 0);
 
-    const kw      = Math.ceil(units / 120) || 0;
+    // Industry-standard formula:
+    //   base_kw = units / monthly_yield_per_kw
+    //   +20% buffer → round up to next whole kW
+    const kw      = units > 0 ? Math.ceil((units / MONTHLY_YIELD_PER_KW) * GROWTH_BUFFER) : 0;
     const panels  = Math.ceil((kw * 1000) / 400) || 0;
     const area    = kw * 100;
     const cost    = kw * 55000;
