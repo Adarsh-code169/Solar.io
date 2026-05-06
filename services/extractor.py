@@ -12,7 +12,6 @@ Accuracy improvements:
 - Meter reading diff used ONLY as fallback, never to override AI extraction
 """
 
-import base64
 import json
 import logging
 import mimetypes
@@ -232,12 +231,13 @@ def extract_bill_data(file_path: str) -> dict:
         if mime_type is None:
             raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
-    # Read file as bytes and encode inline — avoids Files API geo-restriction
+    # Read file as bytes and pass inline — avoids Files API geo-restriction.
+    # data MUST be raw bytes (not base64); the SDK serialises it internally.
     file_bytes = file_path.read_bytes()
     inline_part = {
         "inline_data": {
             "mime_type": mime_type,
-            "data": base64.b64encode(file_bytes).decode("utf-8"),
+            "data": file_bytes,
         }
     }
     logger.info(f"File loaded inline: {len(file_bytes) / 1024:.1f} KB, mime={mime_type}")
