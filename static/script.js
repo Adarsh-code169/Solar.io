@@ -298,7 +298,7 @@ btnExtract.addEventListener("click", async () => {
 
     try {
         const res  = await fetch("/api/extract", { method: "POST", body: formData });
-        const json = await res.json();
+        const json = await parseJsonOrThrow(res);
         if (!res.ok) throw new Error(json.error || "Extraction failed.");
 
         extractedData = json.data;
@@ -540,7 +540,7 @@ btnGenerate.addEventListener("click", async () => {
         });
 
         if (!res.ok) {
-            const json = await res.json();
+            const json = await parseJsonOrThrow(res);
             throw new Error(json.error || "Report generation failed.");
         }
 
@@ -583,6 +583,39 @@ btnNewBill.addEventListener("click", () => {
 
     showStep(1);
 });
+
+
+// ════════════════════════════════════════════════════════════════
+// SAFE JSON PARSER
+// ════════════════════════════════════════════════════════════════
+
+async function parseJsonOrThrow(res) {
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+        // Render free-tier returns <!DOCTYPE html> while the service wakes up
+        const status = res.status;
+        if (status === 502 || status === 503 || status === 0) {
+            throw new Error(
+                "Server is starting up (cold start). Please wait 20–30 seconds and try again."
+            );
+        }
+        throw new Error(
+            `Unexpected server response (HTTP ${status}). The server may be restarting — please try again.`
+        );
+    }
+    return res.json();
+}
+
+
+// ════════════════════════════════════════════════════════════════
+// KEEP-ALIVE  (prevents Render free-tier from sleeping)
+// ════════════════════════════════════════════════════════════════
+
+async function pingServer() {
+    try { await fetch("/api/health"); } catch (_) {}
+}
+pingServer();                            // warm-up on page load
+setInterval(pingServer, 4 * 60 * 1000); // ping every 4 min to stay awake
 
 
 // ════════════════════════════════════════════════════════════════

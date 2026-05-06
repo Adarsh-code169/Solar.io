@@ -17,6 +17,7 @@ import logging
 import mimetypes
 from pathlib import Path
 
+import google.ai.generativelanguage as glm
 import google.generativeai as genai
 from config import GEMINI_API_KEY
 
@@ -231,22 +232,20 @@ def extract_bill_data(file_path: str) -> dict:
         if mime_type is None:
             raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
-    # Read file as bytes and pass inline — avoids Files API geo-restriction.
-    # data MUST be raw bytes (not base64); the SDK serialises it internally.
+    # Read file bytes and build a proper protobuf Part for inline delivery.
+    # glm.Part/Blob is the reliable way in google-generativeai 0.8.x —
+    # avoids the Files API (geo-restricted) and works with any MIME type.
     file_bytes = file_path.read_bytes()
-    inline_part = {
-        "inline_data": {
-            "mime_type": mime_type,
-            "data": file_bytes,
-        }
-    }
+    inline_part = glm.Part(
+        inline_data=glm.Blob(mime_type=mime_type, data=file_bytes)
+    )
     logger.info(f"File loaded inline: {len(file_bytes) / 1024:.1f} KB, mime={mime_type}")
 
     import time
     from google.api_core import exceptions
 
     last_error = None
-    for attempt in range(3):
+    for attempt in range(2):   # max 2 attempts to stay within Render's 30s timeout
         try:
             model = genai.GenerativeModel("gemini-2.0-flash")
             response = model.generate_content(
@@ -272,23 +271,23 @@ def extract_bill_data(file_path: str) -> dict:
             return _validate_and_clean(data)
 
         except exceptions.ResourceExhausted:
-            last_error = "API Quota Exceeded (429). Gemini free tier is busy. Please wait a minute and try again."
-            logger.warning(f"Attempt {attempt + 1}/3: Quota exceeded. Waiting...")
-            time.sleep(5 * (attempt + 1))  # More aggressive wait for quota
+            last_error = "API quota exceeded. Please wait a minute and try again."
+            logger.warning(f"Attempt {attempt + 1}/2: Quota exceeded.")
+            time.sleep(3)
 
         except Exception as e:
             err_str = str(e)
             if "429" in err_str or "quota" in err_str.lower():
-                last_error = "API Quota Exceeded (429). The AI service is currently throttled. Please try again in a few moments."
-                time.sleep(5 * (attempt + 1))
+                last_error = "API quota exceeded. Please try again in a few moments."
+                time.sleep(3)
             elif "location" in err_str.lower() or "region" in err_str.lower():
-                last_error = "Gemini API is not available in your region. Check your API key region settings or use a VPN."
-                logger.error(f"Geo-restriction error: {err_str}")
-                break  # no point retrying a geo-restriction error
+                last_error = "Gemini API is not available in this region."
+                logger.error(f"Geo-restriction: {err_str}")
+                break
             else:
                 last_error = f"AI extraction failed: {err_str}"
-            logger.warning(f"Attempt {attempt + 1}/3 failed: {err_str}")
-            time.sleep(1)
+                time.sleep(2)
+            logger.warning(f"Attempt {attempt + 1}/2 failed: {err_str}")
 
     raise RuntimeError(last_error)
 
