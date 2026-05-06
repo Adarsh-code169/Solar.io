@@ -1,15 +1,18 @@
 """
 AI-powered electricity bill data extractor using Google Gemini Vision API.
 
-Accuracy improvements over v1:
+Accuracy improvements:
+- Inline data (base64) instead of Files API — avoids geo-restriction errors
 - Extracts energy_charges, fixed_charges, taxes separately for correct rate math
 - electricity_rate = energy_charges / units  (not total_bill / units which is inflated)
 - Cross-validation: rate × units must roughly equal energy_charges, else recalculate
 - Explicit MSEDCL slab summation instructions
 - Realistic range guards: rate ₹1.5–₹18, load 0.5–200 kW, units > 0
 - Gemini response schema enforces correct types, eliminates string-for-number errors
+- Meter reading diff used ONLY as fallback, never to override AI extraction
 """
 
+import base64
 import json
 import logging
 import mimetypes
@@ -54,20 +57,25 @@ Return ONLY a valid JSON object — no markdown, no code block, no explanation, 
 }
 
 ━━━ RULE 1 — units_consumed (MOST CRITICAL) ━━━
-Indian bills often show slab-wise breakdown. You MUST return the TOTAL, not one slab.
+Indian bills often show slab-wise breakdown. You MUST return the GRAND TOTAL, NOT just one slab.
 
 MSEDCL example — bill shows:
-  0–100 units    →  100 units
-  101–300 units  →  200 units
-  301–560 units  →  260 units
-CORRECT answer: 560   ✓
-WRONG answer: 260 or 100   ✗
+  0–100 units    →  100 units   @ ₹3.50/unit
+  101–300 units  →  200 units   @ ₹5.20/unit
+  301–560 units  →  260 units   @ ₹6.80/unit
+CORRECT answer: 560   (100 + 200 + 260)   ✓
+WRONG answer: 260 or 200 or 100   ✗
 
 Priority order:
-  1. Look for a printed "Total Units", "Net Units", "Units Consumed", "Billed Units" — use that directly
-  2. If only slab-wise shown, SUM all the slab unit values
-  3. FALLBACK: current_reading − previous_reading
+  1. BEST: Look for a printed "Total Units", "Net Units", "Units Consumed", "Billed Units",
+           "Total Consumption", "EB Units" — use that single printed total directly
+  2. If only slab-wise breakdown shown: ADD all slab unit values together to get the total
+  3. FALLBACK ONLY if neither (1) nor (2) is possible: current_reading − previous_reading
   4. Return as INTEGER (no decimal point, no "kWh")
+
+⚠️ CRITICAL SLAB TRAP: If you see the LAST slab has e.g. 260 units, the total is NOT 260.
+   You MUST sum every slab row to get the real total consumption.
+⚠️ Do NOT confuse the slab unit RANGE (e.g. "301–560") with the units IN that slab (260).
 
 ━━━ RULE 2 — sanctioned_load ━━━
 Look for: "Sanctioned Load", "Connected Load", "Contract Demand"
@@ -224,9 +232,15 @@ def extract_bill_data(file_path: str) -> dict:
         if mime_type is None:
             raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
-    # Upload once — reuse across retries
-    uploaded_file = genai.upload_file(str(file_path), mime_type=mime_type)
-    logger.info(f"Uploaded to Gemini: {uploaded_file.name}")
+    # Read file as bytes and encode inline — avoids Files API geo-restriction
+    file_bytes = file_path.read_bytes()
+    inline_part = {
+        "inline_data": {
+            "mime_type": mime_type,
+            "data": base64.b64encode(file_bytes).decode("utf-8"),
+        }
+    }
+    logger.info(f"File loaded inline: {len(file_bytes) / 1024:.1f} KB, mime={mime_type}")
 
     import time
     from google.api_core import exceptions
@@ -236,7 +250,7 @@ def extract_bill_data(file_path: str) -> dict:
         try:
             model = genai.GenerativeModel("gemini-2.0-flash")
             response = model.generate_content(
-                [EXTRACTION_PROMPT, uploaded_file],
+                [EXTRACTION_PROMPT, inline_part],
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.0,
                     max_output_tokens=2048,
@@ -257,17 +271,26 @@ def extract_bill_data(file_path: str) -> dict:
 
             return _validate_and_clean(data)
 
-        except exceptions.ResourceExhausted as e:
-            last_error = "API Quota Exceeded (429). Please wait a minute and try again."
+        except exceptions.ResourceExhausted:
+            last_error = "API Quota Exceeded (429). Gemini free tier is busy. Please wait a minute and try again."
             logger.warning(f"Attempt {attempt + 1}/3: Quota exceeded. Waiting...")
-            time.sleep(2 * (attempt + 1))  # Exponential-ish backoff
+            time.sleep(5 * (attempt + 1))  # More aggressive wait for quota
 
         except Exception as e:
-            last_error = str(e)
-            logger.warning(f"Attempt {attempt + 1}/3 failed: {e}")
+            err_str = str(e)
+            if "429" in err_str or "quota" in err_str.lower():
+                last_error = "API Quota Exceeded (429). The AI service is currently throttled. Please try again in a few moments."
+                time.sleep(5 * (attempt + 1))
+            elif "location" in err_str.lower() or "region" in err_str.lower():
+                last_error = "Gemini API is not available in your region. Check your API key region settings or use a VPN."
+                logger.error(f"Geo-restriction error: {err_str}")
+                break  # no point retrying a geo-restriction error
+            else:
+                last_error = f"AI extraction failed: {err_str}"
+            logger.warning(f"Attempt {attempt + 1}/3 failed: {err_str}")
             time.sleep(1)
 
-    raise RuntimeError(f"AI extraction failed: {last_error}")
+    raise RuntimeError(last_error)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -306,19 +329,22 @@ def _validate_and_clean(data: dict) -> dict:
             data["units_consumed"] = int(curr - prev)
             logger.info(f"[FALLBACK] units_consumed = {data['units_consumed']} (from readings)")
 
-    # ── Step 3: Cross-validate units vs meter readings ─────────────────────
+    # ── Step 3: Log meter reading diff for reference only ─────────────────
+    # NOTE: We do NOT override AI-extracted units with meter diff.
+    # Indian bills can have arrears, adjustments, multi-month billing, or
+    # slab-driven totals that legitimately differ from simple (curr - prev).
+    # The AI reads the "Billed Units" or slab total directly from the bill,
+    # which is the most accurate source.  Meter diff is logged for debugging.
     units = data.get("units_consumed")
     prev  = data.get("previous_reading")
     curr  = data.get("current_reading")
     if units and prev is not None and curr is not None and curr > prev:
         reading_diff = int(curr - prev)
-        tolerance = max(10, reading_diff * 0.10)   # 10% tolerance
-        if abs(units - reading_diff) > tolerance:
-            logger.warning(
+        if abs(units - reading_diff) > max(10, reading_diff * 0.20):
+            logger.info(
                 f"units_consumed={units} differs from meter diff={reading_diff} "
-                f"by more than 10% — trusting meter readings"
+                f"— trusting AI extraction (bill may have adjustments/arrears)"
             )
-            data["units_consumed"] = reading_diff
 
     # ── Step 4: Accurate electricity_rate calculation ──────────────────────
     units          = data.get("units_consumed") or 0
