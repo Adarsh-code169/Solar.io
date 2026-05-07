@@ -244,10 +244,10 @@ def extract_bill_data(file_path: str) -> dict:
     import time
     from google.api_core import exceptions
 
-    # Model fallback chain — confirmed available on this API key via list_models().
-    # gemini-2.5-flash is primary (best accuracy for bill parsing).
-    # gemini-2.0-flash-lite is fallback (separate quota pool, fast).
-    MODEL_SEQUENCE = ["gemini-2.5-flash", "gemini-2.0-flash-lite"]
+    # Model fallback chain — both confirmed available via list_models().
+    # gemini-2.0-flash is primary (known working).
+    # gemini-2.0-flash-lite is fallback with a separate quota pool.
+    MODEL_SEQUENCE = ["gemini-2.0-flash", "gemini-2.0-flash-lite"]
     last_error = None
 
     for model_name in MODEL_SEQUENCE:
@@ -287,8 +287,9 @@ def extract_bill_data(file_path: str) -> dict:
                 last_error = "API quota exceeded. Please try again in a moment."
                 logger.warning(f"{model_name}: quota 429, trying next model...")
                 time.sleep(2)
-            elif "location" in err_str.lower() or "region" in err_str.lower():
-                last_error = "Gemini API is not available in this region."
+            elif "location is not supported" in err_str.lower():
+                # Exact phrase Google returns for geo-restricted API keys
+                last_error = "Gemini API is not available in your region for this API key."
                 logger.error(f"Geo-restriction on {model_name}: {err_str}")
                 break  # geo errors won't be fixed by trying another model
             else:
