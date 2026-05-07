@@ -232,22 +232,55 @@ def extract_bill_data(file_path: str) -> dict:
         if mime_type is None:
             raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
-    # Read file bytes and build a proper protobuf Part for inline delivery.
-    # glm.Part/Blob is the reliable way in google-generativeai 0.8.x —
-    # avoids the Files API (geo-restricted) and works with any MIME type.
     file_bytes = file_path.read_bytes()
-    inline_part = glm.Part(
-        inline_data=glm.Blob(mime_type=mime_type, data=file_bytes)
+
+    # ── Strategy: prefer text extraction over vision ──────────────────────
+    # Text-based PDFs (MSEDCL, Adani, Tata Power) contain selectable text.
+    # Extracting that text and sending it as a text prompt uses the text
+    # quota (much higher RPM) and is faster than vision processing.
+    extracted_text = None
+    if mime_type == "application/pdf":
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(file_path)
+            pages_text = [page.extract_text() or "" for page in reader.pages]
+            raw_text = "\n".join(pages_text).strip()
+            if len(raw_text) > 200:   # enough real text to work with
+                extracted_text = raw_text
+                logger.info(f"PDF text extracted: {len(extracted_text)} chars")
+            else:
+                logger.info("PDF has no selectable text — falling back to vision")
+        except Exception as tex:
+            logger.warning(f"Text extraction failed: {tex} — using vision")
+
+    if extracted_text:
+        content_input = [
+            EXTRACTION_PROMPT
+            + "\n\n━━━ BILL TEXT (extracted from PDF) ━━━\n"
+            + extracted_text
+        ]
+    else:
+        content_input = [
+            EXTRACTION_PROMPT,
+            glm.Part(inline_data=glm.Blob(mime_type=mime_type, data=file_bytes)),
+        ]
+
+    logger.info(
+        f"Mode: {'text' if extracted_text else 'vision'} | "
+        f"File: {len(file_bytes)/1024:.1f} KB, mime={mime_type}"
     )
-    logger.info(f"File loaded inline: {len(file_bytes) / 1024:.1f} KB, mime={mime_type}")
 
     import time
     from google.api_core import exceptions
 
-    # Model fallback chain — both confirmed available via list_models().
-    # gemini-2.0-flash is primary (known working).
-    # gemini-2.0-flash-lite is fallback with a separate quota pool.
-    MODEL_SEQUENCE = ["gemini-2.0-flash", "gemini-2.0-flash-lite"]
+    # Each model ID has its OWN quota counter — try all variants before giving up.
+    # Confirmed available via list_models() on this API key.
+    MODEL_SEQUENCE = [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-flash-001",
+        "gemini-2.0-flash-lite-001",
+    ]
     last_error = None
 
     for model_name in MODEL_SEQUENCE:
@@ -255,7 +288,7 @@ def extract_bill_data(file_path: str) -> dict:
             logger.info(f"Trying model: {model_name}")
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(
-                [EXTRACTION_PROMPT, inline_part],
+                content_input,
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.0,
                     max_output_tokens=2048,
