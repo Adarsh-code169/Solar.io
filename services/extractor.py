@@ -244,11 +244,10 @@ def extract_bill_data(file_path: str) -> dict:
     import time
     from google.api_core import exceptions
 
-    # Try primary model first, fall back to secondary on quota/errors.
-    # Both models stay within Render's 30-second timeout window.
-    # Note: google-generativeai 0.8.x uses v1beta endpoint — model names
-    # must use the -latest suffix for 1.5 family; bare "gemini-1.5-flash" returns 404.
-    MODEL_SEQUENCE = ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
+    # Model fallback chain — confirmed available on this API key via list_models().
+    # gemini-2.5-flash is primary (best accuracy for bill parsing).
+    # gemini-2.0-flash-lite is fallback (separate quota pool, fast).
+    MODEL_SEQUENCE = ["gemini-2.5-flash", "gemini-2.0-flash-lite"]
     last_error = None
 
     for model_name in MODEL_SEQUENCE:
