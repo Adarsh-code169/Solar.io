@@ -102,10 +102,11 @@ def extract():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     saved_filename = f"{timestamp}_{filename}"
     file_path = UPLOAD_DIR / saved_filename
-    file.save(str(file_path))
-    logger.info(f"File saved: {file_path} ({file_path.stat().st_size / 1024:.1f} KB)")
 
     try:
+        file.save(str(file_path))
+        logger.info(f"File saved: {file_path} ({file_path.stat().st_size / 1024:.1f} KB)")
+
         # Extract data using Gemini AI
         extracted_data = extract_bill_data(str(file_path))
 

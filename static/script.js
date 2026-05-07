@@ -618,15 +618,22 @@ btnNewBill.addEventListener("click", () => {
 async function parseJsonOrThrow(res) {
     const ct = res.headers.get("content-type") || "";
     if (!ct.includes("application/json")) {
-        // Render free-tier returns <!DOCTYPE html> while the service wakes up
         const status = res.status;
         if (status === 502 || status === 503 || status === 0) {
             throw new Error(
                 "Server is starting up (cold start). Please wait 20–30 seconds and try again."
             );
         }
+        // Try to extract a useful message from the HTML body (e.g. Flask traceback)
+        try {
+            const text = await res.text();
+            const match = text.match(/<p>(.*?)<\/p>/i);
+            if (match) throw new Error(`Server error (${status}): ${match[1]}`);
+        } catch (inner) {
+            if (inner.message.startsWith("Server error")) throw inner;
+        }
         throw new Error(
-            `Unexpected server response (HTTP ${status}). The server may be restarting — please try again.`
+            `Server error (HTTP ${status}). Check server logs for details.`
         );
     }
     return res.json();
