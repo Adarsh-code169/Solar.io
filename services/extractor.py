@@ -244,10 +244,15 @@ def extract_bill_data(file_path: str) -> dict:
     import time
     from google.api_core import exceptions
 
+    # Try primary model first, fall back to secondary on quota/errors.
+    # Both models stay within Render's 30-second timeout window.
+    MODEL_SEQUENCE = ["gemini-2.0-flash", "gemini-1.5-flash"]
     last_error = None
-    for attempt in range(2):   # max 2 attempts to stay within Render's 30s timeout
+
+    for model_name in MODEL_SEQUENCE:
         try:
-            model = genai.GenerativeModel("gemini-2.0-flash")
+            logger.info(f"Trying model: {model_name}")
+            model = genai.GenerativeModel(model_name)
             response = model.generate_content(
                 [EXTRACTION_PROMPT, inline_part],
                 generation_config=genai.types.GenerationConfig(
@@ -259,7 +264,7 @@ def extract_bill_data(file_path: str) -> dict:
             )
 
             raw = response.text.strip()
-            logger.info(f"Gemini response ({len(raw)} chars), attempt {attempt + 1}")
+            logger.info(f"Gemini response ({len(raw)} chars) from {model_name}")
 
             try:
                 data = json.loads(raw)
@@ -271,23 +276,24 @@ def extract_bill_data(file_path: str) -> dict:
             return _validate_and_clean(data)
 
         except exceptions.ResourceExhausted:
-            last_error = "API quota exceeded. Please wait a minute and try again."
-            logger.warning(f"Attempt {attempt + 1}/2: Quota exceeded.")
-            time.sleep(3)
+            last_error = "API quota exceeded on all models. Please wait a minute and try again."
+            logger.warning(f"{model_name}: quota exceeded, trying next model...")
+            time.sleep(2)
 
         except Exception as e:
             err_str = str(e)
             if "429" in err_str or "quota" in err_str.lower():
-                last_error = "API quota exceeded. Please try again in a few moments."
-                time.sleep(3)
+                last_error = "API quota exceeded. Please try again in a moment."
+                logger.warning(f"{model_name}: quota 429, trying next model...")
+                time.sleep(2)
             elif "location" in err_str.lower() or "region" in err_str.lower():
                 last_error = "Gemini API is not available in this region."
-                logger.error(f"Geo-restriction: {err_str}")
-                break
+                logger.error(f"Geo-restriction on {model_name}: {err_str}")
+                break  # geo errors won't be fixed by trying another model
             else:
                 last_error = f"AI extraction failed: {err_str}"
-                time.sleep(2)
-            logger.warning(f"Attempt {attempt + 1}/2 failed: {err_str}")
+                logger.warning(f"{model_name} failed: {err_str}")
+                time.sleep(1)
 
     raise RuntimeError(last_error)
 
