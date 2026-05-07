@@ -14,6 +14,7 @@ const fileNameEl     = document.getElementById("file-name");
 const fileSizeEl     = document.getElementById("file-size");
 const btnRemove      = document.getElementById("btn-remove");
 const btnExtract     = document.getElementById("btn-extract");
+const btnManual      = document.getElementById("btn-manual");
 const extractLoader  = document.getElementById("extract-loader");
 const extractText    = btnExtract.querySelector(".btn-text");
 
@@ -162,6 +163,7 @@ function setFile(file) {
     uploadZone.style.opacity       = "0.5";
     uploadZone.style.pointerEvents = "none";
     btnExtract.disabled = false;
+    if (btnManual) btnManual.classList.add("hidden");
 }
 
 function clearFile() {
@@ -171,6 +173,7 @@ function clearFile() {
     uploadZone.style.opacity       = "";
     uploadZone.style.pointerEvents = "";
     btnExtract.disabled = true;
+    if (btnManual) btnManual.classList.add("hidden");
 }
 
 uploadZone.addEventListener("click",   () => fileInput.click());
@@ -311,12 +314,35 @@ btnExtract.addEventListener("click", async () => {
     } catch (err) {
         showToast(`❌ ${err.message}`);
         announce(`Error: ${err.message}`);
+        // Show manual entry fallback
+        if (btnManual) btnManual.classList.remove("hidden");
     } finally {
         extractText.classList.remove("hidden");
         extractLoader.classList.add("hidden");
         btnExtract.disabled = !selectedFile;
     }
 });
+
+if (btnManual) {
+    btnManual.addEventListener("click", () => {
+        // Proceed to step 2 with empty/default data
+        extractedData = {
+            consumer_name: "",
+            consumer_number: "",
+            billing_period: "",
+            units_consumed: 300, // Default sensible starting point
+            sanctioned_load: 5,
+            total_bill_amount: 0,
+            electricity_rate: 8.0,
+        };
+        buildDataGrid(dataGrid, extractedData, false);
+        updateKPICards(extractedData);
+        updateSizingList(extractedData);
+        renderChart(extractedData);
+        showStep(2);
+        showToast("⚠️ AI was busy. Please fill in your bill details manually.");
+    });
+}
 
 btnBackUpload.addEventListener("click", () => showStep(1));
 

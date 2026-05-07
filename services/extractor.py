@@ -273,13 +273,17 @@ def extract_bill_data(file_path: str) -> dict:
     import time
     from google.api_core import exceptions
 
-    # Each model ID has its OWN quota counter — try all variants before giving up.
-    # Confirmed available via list_models() on this API key.
+    # Each model has its OWN per-minute quota. Trying all variants maximizes
+    # our chance of success on the free tier. gemini-1.5-flash* and gemini-2.0-flash*
+    # have SEPARATE quota pools — so if 2.0 is exhausted, 1.5 might still work.
     MODEL_SEQUENCE = [
         "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
         "gemini-2.0-flash-lite",
         "gemini-2.0-flash-001",
         "gemini-2.0-flash-lite-001",
+        "gemini-1.5-flash-latest",
     ]
     last_error = None
 
@@ -310,27 +314,33 @@ def extract_bill_data(file_path: str) -> dict:
             return _validate_and_clean(data)
 
         except exceptions.ResourceExhausted:
-            last_error = "API quota exceeded on all models. Please wait a minute and try again."
+            last_error = "API quota exceeded. Trying next model..."
             logger.warning(f"{model_name}: quota exceeded, trying next model...")
-            time.sleep(2)
+            time.sleep(10)  # Wait 10s to respect per-minute rate limits
 
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str or "quota" in err_str.lower():
-                last_error = "API quota exceeded. Please try again in a moment."
+            if "429" in err_str or "quota" in err_str.lower() or "resource_exhausted" in err_str.lower():
+                last_error = "API quota exceeded. Trying next model..."
                 logger.warning(f"{model_name}: quota 429, trying next model...")
-                time.sleep(2)
-            elif "location is not supported" in err_str.lower():
-                # Exact phrase Google returns for geo-restricted API keys
-                last_error = "Gemini API is not available in your region for this API key."
+                time.sleep(10)
+            elif "location is not supported" in err_str.lower() or "user location is not supported" in err_str.lower():
+                last_error = "Gemini API is not available in the server's region. Please contact support."
                 logger.error(f"Geo-restriction on {model_name}: {err_str}")
-                break  # geo errors won't be fixed by trying another model
+                break  # Geo errors won't be fixed by trying another model
+            elif "not found" in err_str.lower() or "unknown model" in err_str.lower():
+                logger.warning(f"{model_name} not available, trying next...")
+                continue  # Skip unavailable models silently
             else:
                 last_error = f"AI extraction failed: {err_str}"
                 logger.warning(f"{model_name} failed: {err_str}")
                 time.sleep(1)
 
-    raise RuntimeError(last_error)
+    raise RuntimeError(
+        "⚠️ AI Quota Reached: All Gemini models are currently rate-limited. "
+        "Please wait 60 seconds and try again, or use 'Enter Manually' to fill in your bill details."
+    )
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
