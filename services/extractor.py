@@ -246,7 +246,9 @@ def extract_bill_data(file_path: str) -> dict:
 
     # Try primary model first, fall back to secondary on quota/errors.
     # Both models stay within Render's 30-second timeout window.
-    MODEL_SEQUENCE = ["gemini-2.0-flash", "gemini-1.5-flash"]
+    # Note: google-generativeai 0.8.x uses v1beta endpoint — model names
+    # must use the -latest suffix for 1.5 family; bare "gemini-1.5-flash" returns 404.
+    MODEL_SEQUENCE = ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
     last_error = None
 
     for model_name in MODEL_SEQUENCE:
